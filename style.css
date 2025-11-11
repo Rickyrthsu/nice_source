@@ -1,0 +1,327 @@
+/* :root 用於定義全域變數，這是模組化的第一步 */
+:root {
+    --bg-color: #F5EFE6;         /* 奶茶色 (背景) */
+    --primary-color: #7D5A50;    /* 大地色 (主色，例如按鈕) */
+    --secondary-color: #E8D8C4;  /* 淺褐色 (輔助色，例如卡片背景) */
+    --text-color: #3C2A21;       /* 深棕色 (文字) */
+    --border-radius: 8px;       /* 圓角 */
+    --card-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* 基礎重設 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 頂部標頭排版 (使用 Flexbox 達成模組化佈局) */
+.main-header {
+    display: flex;
+    justify-content: space-between; /* 讓導覽和搜尋框左右分離 */
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+/* 左側導覽按鈕 */
+.category-nav .nav-btn {
+    font-size: 16px;
+    padding: 8px 16px;
+    border: none;
+    background-color: transparent;
+    color: var(--text-color);
+    opacity: 0.6;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-nav .nav-btn.active {
+    opacity: 1;
+    font-weight: bold;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+
+/* 右側控制區域 (新增+搜尋) */
+.controls-area {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* 在「新增」和「查詢」之間增加一點間距 */
+}
+
+/* 模組化：讓兩種表單共用樣式 */
+.add-form,
+.search-form {
+    display: flex;
+}
+
+/* 模組化：共用輸入框樣式 */
+.add-form input,
+.search-form input {
+    padding: 8px;
+    border: 1px solid var(--secondary-color);
+    background-color: #fff;
+    border-radius: 0; 
+}
+
+/* 模組化：共用按鈕樣式 */
+.add-form button,
+.search-form button {
+    padding: 8px 12px;
+    border: none;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    border-radius: 0; 
+    transition: background-color 0.2s ease;
+}
+
+.add-form button:hover,
+.search-form button:hover {
+    background-color: var(--text-color);
+}
+
+/* 替兩個表單補上圓角 */
+.add-form input {
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+}
+.add-form button {
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+.search-form input {
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+}
+.search-form button {
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+
+
+/* === 核心：你想要的「正方形矩陣」 === */
+.results-grid {
+    display: grid;
+    /* * 這是實現矩陣的關鍵 (已具備響應式特性)：
+     * repeat(auto-fill, ...): 自動判斷一行能塞幾個。
+     * minmax(180px, 1fr): 每個卡片最小 180px，最大 1fr (均分剩餘空間)
+     */
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px; /* 卡片之間的間距 */
+}
+
+/* 卡片本身的樣式 */
+.card {
+    background-color: var(--secondary-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    overflow: hidden; 
+    transition: transform 0.2s ease;
+    /* === 新增：加上點擊游標 === */
+    cursor: pointer; 
+}
+
+.card:hover {
+    transform: translateY(-5px); 
+}
+
+/* * 舊的 a 標籤樣式已移除，因為 app.js
+ * 改用 div + click event
+ */
+
+.card img {
+    width: 100%;
+    height: 200px; 
+    object-fit: cover; 
+    display: block;
+    background-color: #ccc; 
+}
+
+.card-info {
+    padding: 10px;
+    /* === 新增：防止點擊文字時觸發 bug === */
+    pointer-events: none; 
+}
+
+.card-info h3 {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card-info p {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* * ========================================
+ * === 響應式設計 (Responsive Design) === 
+ * ========================================
+ */
+
+/* 當螢幕寬度小於 768px 時 (例如平板或手機橫向) */
+@media (max-width: 768px) {
+    .main-header {
+        flex-direction: column; /* 標頭改為垂直堆疊 */
+        align-items: flex-start; /* 堆疊後靠左對齊 */
+        gap: 20px; /* 導覽 和 控制區 之間增加間距 */
+    }
+
+    .controls-area {
+        flex-wrap: wrap; /* 允許「新增」和「查詢」換行 */
+        gap: 10px; /* 換行時的間距 */
+    }
+}
+
+/* 當螢幕寬度小於 480px 時 (例如手機直向) */
+@media (max-width: 480px) {
+    .container {
+        padding: 15px; /* 手機上邊距小一點 */
+    }
+
+    /* 讓兩個表單都佔滿100%寬度，並垂直堆疊 */
+    .add-form,
+    .search-form {
+        width: 100%;
+    }
+
+    /* 讓表單內的輸入框自動填滿可用空間 */
+    .add-form input,
+    .search-form input {
+        flex-grow: 1; /* 關鍵：讓輸入框佔滿剩餘空間 */
+    }
+    
+    /* 調整矩陣卡片的最小寬度，讓小手機也能塞 */
+    .results-grid {
+        /* * 最小 140px，讓 320px 寬的手機
+         * (320 - 15*2 padding = 290)
+         * 也能輕鬆塞下兩欄 (140 + 140 + 10 gap = 290)
+         */
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px; /* 卡片間距也小一點 */
+    }
+
+    .card img {
+        height: 160px; /* 手機上卡片圖片不用那麼高 */
+    }
+}
+
+
+/* * ========================================
+ * === 新增：Modal 彈窗樣式 === 
+ * ========================================
+ */
+
+.modal-overlay {
+    position: fixed; /* 固定在畫面上 */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* 半透明黑色背景 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* 預設隱藏 */
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1000;
+}
+
+.modal-overlay.visible {
+    /* 顯示時的狀態 */
+    visibility: visible;
+    opacity: 1;
+}
+
+.modal-content {
+    background-color: var(--bg-color); /* 沿用奶茶色背景 */
+    padding: 30px;
+    border-radius: var(--border-radius);
+    width: 90%;
+    max-width: 600px; /* 彈窗最大寬度 */
+    max-height: 90vh; /* 最大高度 */
+    overflow-y: auto; /* 內容太多時可以捲動 */
+    position: relative;
+    
+    /* 彈出動畫 */
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.visible .modal-content {
+    transform: scale(1);
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 28px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    opacity: 0.5;
+    cursor: pointer;
+}
+.modal-close:hover {
+    opacity: 1;
+}
+
+#modal-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+}
+
+#modal-image {
+    width: 100%;
+    max-height: 400px; /* 限制圖片最大高度 */
+    object-fit: contain; /* 圖片等比例縮放 */
+    border-radius: var(--border-radius);
+    margin-bottom: 20px;
+}
+
+.modal-tags {
+    margin-bottom: 25px;
+    display: flex;
+    flex-wrap: wrap; /* 標籤可換行 */
+    gap: 8px; /* 標籤間距 */
+}
+
+.tag {
+    /* 標籤的樣式 */
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.modal-action-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+}
+
+.modal-action-btn:hover {
+    background-color: var(--text-color);
+}
