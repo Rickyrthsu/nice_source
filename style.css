@@ -1,4 +1,4 @@
-/* :root 用於定義全域變數，這是模組化的第一步 */
+/* :root 用於定義全域變數 */
 :root {
     --bg-color: #F5EFE6;         /* 奶茶色 (背景) */
     --primary-color: #7D5A50;    /* 大地色 (主色，例如按鈕) */
@@ -28,15 +28,16 @@ body {
     padding: 20px;
 }
 
-/* 頂部標頭排版 (使用 Flexbox 達成模組化佈局) */
+/* 頂部標頭排版 (已移除輸入框) */
 .main-header {
     display: flex;
-    justify-content: space-between; /* 讓導覽和搜尋框左右分離 */
+    /* 既然只剩下導覽列，我們讓它置中 */
+    justify-content: center; 
     align-items: center;
     margin-bottom: 30px;
 }
 
-/* 左側導覽按鈕 */
+/* 導覽(篩選)按鈕 */
 .category-nav .nav-btn {
     font-size: 16px;
     padding: 8px 16px;
@@ -55,67 +56,9 @@ body {
 }
 
 
-/* 右側控制區域 (新增+搜尋) */
-.controls-area {
-    display: flex;
-    align-items: center;
-    gap: 15px; /* 在「新增」和「查詢」之間增加一點間距 */
-}
-
-/* 模組化：讓兩種表單共用樣式 */
-.add-form,
-.search-form {
-    display: flex;
-}
-
-/* 模組化：共用輸入框樣式 */
-.add-form input,
-.search-form input {
-    padding: 8px;
-    border: 1px solid var(--secondary-color);
-    background-color: #fff;
-    border-radius: 0; 
-}
-
-/* 模組化：共用按鈕樣式 */
-.add-form button,
-.search-form button {
-    padding: 8px 12px;
-    border: none;
-    background-color: var(--primary-color);
-    color: white;
-    cursor: pointer;
-    border-radius: 0; 
-    transition: background-color 0.2s ease;
-}
-
-.add-form button:hover,
-.search-form button:hover {
-    background-color: var(--text-color);
-}
-
-/* 替兩個表單補上圓角 */
-.add-form input {
-    border-radius: var(--border-radius) 0 0 var(--border-radius);
-}
-.add-form button {
-    border-radius: 0 var(--border-radius) var(--border-radius) 0;
-}
-.search-form input {
-    border-radius: var(--border-radius) 0 0 var(--border-radius);
-}
-.search-form button {
-    border-radius: 0 var(--border-radius) var(--border-radius) 0;
-}
-
-
-/* === 核心：你想要的「正方形矩陣」 === */
+/* === 核心：「正方形矩陣」 === */
 .results-grid {
     display: grid;
-    /* * 這是實現矩陣的關鍵 (已具備響應式特性)：
-     * repeat(auto-fill, ...): 自動判斷一行能塞幾個。
-     * minmax(180px, 1fr): 每個卡片最小 180px，最大 1fr (均分剩餘空間)
-     */
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 20px; /* 卡片之間的間距 */
 }
@@ -127,17 +70,12 @@ body {
     box-shadow: var(--card-shadow);
     overflow: hidden; 
     transition: transform 0.2s ease;
-    /* === 新增：加上點擊游標 === */
     cursor: pointer; 
 }
 
 .card:hover {
     transform: translateY(-5px); 
 }
-
-/* * 舊的 a 標籤樣式已移除，因為 app.js
- * 改用 div + click event
- */
 
 .card img {
     width: 100%;
@@ -149,8 +87,7 @@ body {
 
 .card-info {
     padding: 10px;
-    /* === 新增：防止點擊文字時觸發 bug === */
-    pointer-events: none; 
+    pointer-events: none; /* 防止點擊文字時觸發 bug */
 }
 
 .card-info h3 {
@@ -170,17 +107,12 @@ body {
  * ========================================
  */
 
-/* 當螢幕寬度小於 768px 時 (例如平板或手機橫向) */
+/* 當螢幕寬度小於 768px 時 */
 @media (max-width: 768px) {
     .main-header {
-        flex-direction: column; /* 標頭改為垂直堆疊 */
-        align-items: flex-start; /* 堆疊後靠左對齊 */
-        gap: 20px; /* 導覽 和 控制區 之間增加間距 */
-    }
-
-    .controls-area {
-        flex-wrap: wrap; /* 允許「新增」和「查詢」換行 */
-        gap: 10px; /* 換行時的間距 */
+        flex-direction: column; /* 垂直堆疊 */
+        align-items: center; /* 靠左對齊 */
+        gap: 20px; 
     }
 }
 
@@ -190,24 +122,8 @@ body {
         padding: 15px; /* 手機上邊距小一點 */
     }
 
-    /* 讓兩個表單都佔滿100%寬度，並垂直堆疊 */
-    .add-form,
-    .search-form {
-        width: 100%;
-    }
-
-    /* 讓表單內的輸入框自動填滿可用空間 */
-    .add-form input,
-    .search-form input {
-        flex-grow: 1; /* 關鍵：讓輸入框佔滿剩餘空間 */
-    }
-    
-    /* 調整矩陣卡片的最小寬度，讓小手機也能塞 */
+    /* 調整矩陣卡片的最小寬度 */
     .results-grid {
-        /* * 最小 140px，讓 320px 寬的手機
-         * (320 - 15*2 padding = 290)
-         * 也能輕鬆塞下兩欄 (140 + 140 + 10 gap = 290)
-         */
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 10px; /* 卡片間距也小一點 */
     }
@@ -219,7 +135,7 @@ body {
 
 
 /* * ========================================
- * === 新增：Modal 彈窗樣式 === 
+ * === Modal 彈窗樣式 === 
  * ========================================
  */
 
