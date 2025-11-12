@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsContainer = document.getElementById('results-container');
     const navButtons = document.querySelectorAll('.nav-btn');
     const modal = document.getElementById('modal');
+    // ... (所有 modal 元素) ...
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const modalTitle = document.getElementById('modal-title');
     const modalImage = document.getElementById('modal-image');
@@ -61,31 +62,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * (輔助函式) 建立單一張卡片
-     * ===【【【 關鍵修正！】】】===
+     * ===【【【 關鍵修正：移除代理！】】】===
      */
     function addCardToPage(data) {
         const card = document.createElement('div');
         card.className = 'card';
         card.style.cursor = 'pointer'; 
 
-        // 1. 取得 nhentai 的原始圖片網址 (例如: https://i.nhentai.net/...)
-        const originalImageUrl = data.imageUrl;
-        
-        // 2. 【關鍵！】我們把網址「包」一層圖片代理
-        // 我們移除 'https://' 協議頭，因為 weserv 代理需要
-        const cleanImageUrl = originalImageUrl.replace(/^https?:\/\//, '');
-        const proxyImageUrl = `https://images.weserv.nl/?url=${cleanImageUrl}`;
+        // 1. 【關鍵！】我們現在直接讀取 data.json 裡的網址
+        //    (例如: "images/296340.png" 或 "https://via.placeholder...")
+        //    我們不再需要代理了！
+        const imageUrl = data.imageUrl;
 
-        // 儲存資料到 dataset (我們還是存「原始」資料，Modal 再來處理)
+        // 儲存資料到 dataset 
         card.dataset.title = data.title;
         card.dataset.code = data.code || ''; 
-        card.dataset.imageUrl = originalImageUrl; // 存原始的
+        card.dataset.imageUrl = imageUrl; // 存原始的
         card.dataset.targetUrl = data.targetUrl;
         card.dataset.tags = (data.tags || []).join(','); 
 
         // 填入卡片 HTML
         card.innerHTML = `
-            <img src="${proxyImageUrl}" alt="${data.title}" crossOrigin="anonymous">
+            <img src="${imageUrl}" alt="${data.title}" crossOrigin="anonymous">
             <div class="card-info">
                 <h3>${data.title}</h3>
                 ${data.code ? `<p>${data.code}</p>` : ''} </div>
@@ -95,20 +93,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // === 4. Modal 彈窗邏輯 ===
-    // ===【【【 關鍵修正！】】】===
+    // ===【【【 關鍵修正：移除代理！】】】===
     resultsContainer.addEventListener('click', (event) => {
         const card = event.target.closest('.card');
         if (!card) return; 
 
         const data = card.dataset;
         
-        // 【關鍵！】Modal 裡的大圖「也需要」通過代理
-        const originalImageUrl = data.imageUrl;
-        const cleanImageUrl = originalImageUrl.replace(/^https?:\/\//, '');
-        const proxyImageUrl = `https://images.weserv.nl/?url=${cleanImageUrl}`;
+        // 【關鍵！】Modal 也「直接」使用 imageUrl
+        const imageUrl = data.imageUrl;
 
         modalTitle.textContent = data.title;
-        modalImage.src = proxyImageUrl; // Modal 也使用代理網址
+        modalImage.src = imageUrl; // Modal 也「直接」使用
         modalLink.href = data.targetUrl;
 
         // 處理標籤
