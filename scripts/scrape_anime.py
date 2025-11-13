@@ -5,7 +5,7 @@ import sys
 import shutil 
 from pathlib import Path 
 from bs4 import BeautifulSoup
-import cloudscraper # 它「只」在這裡被 import
+import cloudscraper 
 from urllib.parse import urlparse, parse_qs
 
 # --- 輔助函式：爬取動漫 ---
@@ -23,14 +23,34 @@ def scrape_anime(url):
         # 3. 解析 HTML
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 4. 抓取標題和「外部」圖片網址
+        # 4. 抓取標題和「外部」圖片網址 (不變)
         title_tag = soup.find('meta', property='og:title')
         image_tag = soup.find('meta', property='og:image')
         
         title = title_tag['content'] if title_tag else "找不到標題"
         external_image_url = image_tag['content'] if image_tag else "https://via.placeholder.com/200x250.png?text=Image+Failed"
         
-        # 5. 【【【 新增：下載圖片邏輯 (跟漫畫一樣) 】】】
+        # 5. 【【【 關鍵的「新功能」：抓取標籤！】】】
+        print("  [爬蟲第 2.5 步] 正在尋找 <meta name='keywords'>...")
+        tags = ["anime"] # 先準備一個預設的
+        
+        # 尋找 <meta name="keywords" ... >
+        keywords_tag = soup.find('meta', attrs={'name': 'keywords'})
+        
+        # 檢查：(1) 有沒有找到 (2) 它裡面有沒有 'content'
+        if keywords_tag and keywords_tag.get('content'):
+            keywords_content = keywords_tag.get('content')
+            print(f"  [爬蟲第 2.6 步] 成功找到關鍵字: {keywords_content[:50]}...") # 只印出前 50 個字
+            
+            # 把 "A, B, C" 這種字串，變成 ["A", "B", "C"] 這種列表
+            # .strip() 是為了去除多餘的空白
+            tags = [tag.strip() for tag in keywords_content.split(',')]
+        else:
+            print("  [爬蟲警告!] 找不到 <meta name='keywords'> 標籤，使用預設 'anime' 標籤。")
+        # ===【【【 新功能結束 】】】===
+
+        
+        # 6. 【【【 下載圖片邏輯 (不變) 】】】
         images_dir = Path('images')
         images_dir.mkdir(exist_ok=True)
         
@@ -66,13 +86,13 @@ def scrape_anime(url):
             "title": title,
             "imageUrl": str(internal_image_path), 
             "targetUrl": url,
-            "tags": ["anime"]
+            "tags": tags # 【【【 關鍵！】】】我們現在儲存的是「爬到的」標籤！
         }
     except Exception as e:
         print(f"  [函式: scrape_anime] 爬取動漫 {url} 失敗: {e}")
         return None
 
-# --- 主程式 (所有腳本共用的) ---
+# --- 主程式 (所有腳本共用的，100% 不用動) ---
 def main():
     ctype = os.environ.get('COLLECTION_TYPE')
     cvalue = os.environ.get('COLLECTION_VALUE')
