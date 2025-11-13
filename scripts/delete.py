@@ -6,16 +6,16 @@ from pathlib import Path
 def main():
     print("--- [GitHub Actions 刪除中] ---")
     
-    # 1. 從「環境變數」獲取要刪除的番號
-    code_to_delete = os.environ.get('DELETE_CODE')
+    # ===【【【 關鍵修正：讀取「兩個」變數！】】】===
+    # 1. 從「環境變數」獲取要刪除的類別和值
+    ctype = os.environ.get('DELETE_TYPE')
+    cvalue = os.environ.get('DELETE_VALUE')
     
-    if not code_to_delete:
-        print("錯誤：找不到要刪除的番號 (DELETE_CODE)")
+    if not ctype or not cvalue:
+        print("錯誤：找不到要刪除的類別或值 (DELETE_TYPE or DELETE_VALUE)")
         sys.exit(1) 
 
-    # 為了保險起見，我們也格式化一下
-    code_to_delete = code_to_delete.replace(" ", "-").upper()
-    print(f"準備刪除番號: {code_to_delete}")
+    print(f"準備刪除: 類別={ctype}, 值={cvalue}")
     
     data_file = 'data.json'
     data = []
@@ -36,13 +36,29 @@ def main():
     new_data = []
     item_found = False
     image_to_delete = None
+    
+    # 我們先把「影片/漫畫」的番號格式化
+    formatted_code = cvalue.replace(" ", "-").upper()
 
     for item in data:
-        # .get('code') 可以安全地處理沒有 'code' 欄位的項目
-        # 我們也格式化 item['code']
-        item_code = (item.get('code') or "").replace(" ", "-").upper()
+        found_it = False # 標記這筆是否要刪
         
-        if item_code == code_to_delete:
+        # ===【【【 關鍵修正：分開判斷！】】】===
+        
+        # 情況 A: 如果是「漫畫」或「影片」
+        if ctype == '漫畫' or ctype == '影片':
+            item_code = (item.get('code') or "").replace(" ", "-").upper()
+            if item.get('category') != 'anime' and item_code == formatted_code:
+                found_it = True
+        
+        # 情況 B: 如果是「動漫」
+        elif ctype == '動漫':
+            if item.get('category') == 'anime' and item.get('targetUrl') == cvalue:
+                found_it = True
+        
+        # ===【【【 判斷結束 】】】===
+
+        if found_it:
             # 找到了！
             item_found = True
             print(f"找到了! 準備刪除: {item.get('title')}")
@@ -59,8 +75,8 @@ def main():
             new_data.append(item)
 
     if not item_found:
-        print(f"警告：在 data.json 中找不到番號 {code_to_delete}，任務結束。")
-        sys.exit(0) # 正常結束，因為这不算「錯誤」
+        print(f"警告：在 data.json 中找不到 {ctype} 的 {cvalue}，任務結束。")
+        sys.exit(0) # 正常結束，因為這不算「錯誤」
 
     # 4. 【新功能】刪除實體的圖片檔案 (如果有的話)
     if image_to_delete:
@@ -79,7 +95,7 @@ def main():
         with open(data_file, 'w', encoding='utf-8') as f:
             json.dump(new_data, f, indent=2, ensure_ascii=False)
         print(f"--- [GitHub Actions 刪除完畢] ---")
-        print(f"✅ 成功從 data.json 刪除 {code_to_delete}！")
+        print(f"✅ 成功從 data.json 刪除 {cvalue}！")
         
     except Exception as e:
         print(f"❌ 寫回 data.json 時失敗: {e}")
