@@ -11,8 +11,10 @@ def main():
     
     if not code_to_delete:
         print("錯誤：找不到要刪除的番號 (DELETE_CODE)")
-        sys.exit(1) # 結束程式
+        sys.exit(1) 
 
+    # 為了保險起見，我們也格式化一下
+    code_to_delete = code_to_delete.replace(" ", "-").upper()
     print(f"準備刪除番號: {code_to_delete}")
     
     data_file = 'data.json'
@@ -36,8 +38,11 @@ def main():
     image_to_delete = None
 
     for item in data:
-        # .get('code') 可以安全地處理沒有 'code' 欄位的項目 (例如動漫)
-        if item.get('code') == code_to_delete:
+        # .get('code') 可以安全地處理沒有 'code' 欄位的項目
+        # 我們也格式化 item['code']
+        item_code = (item.get('code') or "").replace(" ", "-").upper()
+        
+        if item_code == code_to_delete:
             # 找到了！
             item_found = True
             print(f"找到了! 準備刪除: {item.get('title')}")
@@ -55,7 +60,7 @@ def main():
 
     if not item_found:
         print(f"警告：在 data.json 中找不到番號 {code_to_delete}，任務結束。")
-        sys.exit(0) # 正常結束，因為這不算「錯誤」
+        sys.exit(0) # 正常結束，因為这不算「錯誤」
 
     # 4. 【新功能】刪除實體的圖片檔案 (如果有的話)
     if image_to_delete:

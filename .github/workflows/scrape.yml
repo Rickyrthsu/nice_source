@@ -23,23 +23,19 @@ jobs:
       contents: write
     
     steps:
-      # 步驟 1: 取得你倉庫的程式碼
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 步驟 2: 設定 Python 環境
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      # 步驟 3: 安裝「所有」需要的套件
       - name: Install ALL dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4 cloudscraper
           
-      # 步驟 4.1: 執行「漫畫」爬蟲 (如果類別是 '漫畫')
       - name: Run Comic Scraper
         if: github.event.inputs.collection_type == '漫畫'
         env:
@@ -48,7 +44,6 @@ jobs:
         run: |
           python scripts/scrape_comic.py
           
-      # 步驟 4.2: 執行「影片」爬蟲 (如果類別是 '影片')
       - name: Run Video Scraper
         if: github.event.inputs.collection_type == '影片'
         env:
@@ -57,7 +52,6 @@ jobs:
         run: |
           python scripts/scrape_video.py
           
-      # 步驟 4.3: 執行「動漫」爬蟲 (如果類別是 '動漫')
       - name: Run Anime Scraper
         if: github.event.inputs.collection_type == '動漫'
         env:
@@ -66,9 +60,24 @@ jobs:
         run: |
           python scripts/scrape_anime.py
       
-      # 步驟 5: 自動 Commit 變更
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: "chore(data): 自動更新收藏"
-          file_pattern: "data.json images"
+      # ===【【【 關鍵的 Bug 修正！手動 Git！】】】===
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # 【【【 關鍵！】】】 先拉回 (pull) 遠端的變更，--rebase 確保我們的 commit 疊在最上面
+          git pull origin main --rebase
+          
+          # 把我們的變更 (新的 data.json 和 images) 加進來
+          # "|| exit 0" 是為了防止在「沒有變更」時 git add 報錯
+          git add data.json images || exit 0
+          
+          # 檢查是否有任何東西被 add
+          if ! git diff --cached --quiet; then
+            echo "偵測到變更，準備 commit..."
+            git commit -m "chore(data): 自動更新收藏"
+            git push origin main
+          else
+            echo "沒有偵測到 data.json 或 images/ 的變更，無需 commit。"
+          fi

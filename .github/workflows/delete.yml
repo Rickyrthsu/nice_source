@@ -3,46 +3,38 @@ name: 刪除收藏 (Delete Collection)
 on:
   workflow_dispatch:
     inputs:
-      # 這是刪除功能唯一的輸入框
       delete_code:
-        description: '請輸入要「刪除」的番號'
+        description: '請輸入要「刪除」的番號 (例如 SSNI-123)'
         required: true
         type: string
 
 jobs:
   delete-and-commit:
     runs-on: ubuntu-latest
-    
-    # 【【【 關鍵！】】】 我們一樣需要「寫入」權限
     permissions:
       contents: write
     
     steps:
-      # 步驟 1: 取得你倉庫的程式碼
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 步驟 2: 設定 Python 環境
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
-      # 步驟 3: 【不需要】安裝套件
-      # (因為 delete.py 只需要內建的 os, json, sys，所以跑超快)
           
-      # 步驟 4: 執行你的 Python 刪除腳本
       - name: Run delete script
         env:
-          # 這裡我們把表單的輸入值，傳給 Python 腳本
           DELETE_CODE: ${{ github.event.inputs.delete_code }}
         run: |
           python scripts/delete.py
           
-      # 步驟 5: 自動把「更新後的 data.json」和「被刪掉的圖片」存回倉庫
+      # ===【【【 關鍵的 Bug 修正！手動 Git！】】】===
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: "chore(data): 自動刪除收藏"
-          # 我們告訴它 commit「data.json」和「images 這個資料夾」的變動
-          file_pattern: "data.json images"
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull origin main --rebase
+          git add data.json images
+          git commit -m "chore(data): 自動刪除收藏 (${{ github.event.inputs.delete_code }})"
+          git push origin main

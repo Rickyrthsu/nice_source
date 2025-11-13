@@ -1,11 +1,8 @@
-# 1. 檔案名稱：del_all.yml
-# 2. 顯示名稱：清空所有資料 (Reset Project)
 name: 清空所有資料 (Reset Project)
 
 on:
   workflow_dispatch:
     inputs:
-      # 3. 你的「安全鎖」：要求輸入 "right"
       confirmation:
         description: '【危險！】請輸入 "right" 來確認「清空」所有資料'
         required: true
@@ -14,53 +11,41 @@ on:
 jobs:
   reset-everything:
     runs-on: ubuntu-latest
-    
-    # 4. 【關鍵！】 我們一樣需要「寫入」權限
     permissions:
       contents: write
     
     steps:
-      # 步驟 1: 安全檢查
       - name: Check Confirmation
-        # 「if」: 只有當輸入「不是」 'right' 時，才執行這一步
         if: github.event.inputs.confirmation != 'right'
         run: |
           echo "錯誤：未輸入 'right'。取消清空操作。"
-          exit 1 # 讓 Action 失敗
+          exit 1 
           
-      # 步驟 2: 取得你倉庫的程式碼
-      # (只有在輸入 'right' 之後，才會跑到這一步)
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 步驟 3: 執行清空
       - name: Clear Data and Images
         run: |
           echo "--- 確認 'right'，開始清空 ---"
-          
-          # 1. 清空 data.json
           echo "[]" > data.json
           echo "data.json 已清空。"
-          
-          # 2. 清空 images 資料夾
           if [ -d "images" ]; then
             echo "找到 images/ 資料夾，正在清空..."
-            # 刪除資料夾內「所有」檔案
             find images -mindepth 1 -delete
-            # 新增 .gitkeep 確保「空資料夾」本身還在
             touch images/.gitkeep
           else
-            echo "找不到 images/ 資料G夾，建立一個新的..."
+            echo "找不到 images/ 資料夾，建立一個新的..."
             mkdir images
             touch images/.gitkeep
           fi
-          
           echo "--- 清空完畢 ---"
           
-      # 步驟 4: 自動把「清空」的結果 Commit 回去
+      # ===【【【 關鍵的 Bug 修正！手動 Git！】】】===
       - name: Commit Reset
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: "chore(data): ⚠️ RESET - 清空 data.json 與 images 資料夾"
-          # 我們告訴它 commit「data.json」和「images 這個資料夾」的變動
-          file_pattern: "data.json images"
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull origin main --rebase
+          git add data.json images
+          git commit -m "chore(data): ⚠️ RESET - 清空 data.json 與 images 資料夾"
+          git push origin main
