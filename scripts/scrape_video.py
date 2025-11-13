@@ -8,43 +8,74 @@ from bs4 import BeautifulSoup
 import cloudscraper 
 from urllib.parse import urlparse, quote 
 
-# --- 【【【 關鍵大修正：只抓「類型」！】】】 ---
+# --- 【【【 全新輔助函式：用來解析詳細頁面 】】】 ---
 def parse_details_page(soup):
     """
-    【【【 你的「精簡版」邏輯 】】】
-    我們不再抓「所有」資料，
-    我們「只」尋找「類型:」後面的 <a> 標籤。
+    解析「詳細頁面」的資料 (女優, 類型...)
     """
-    print("  [解析新邏輯] 正在尋找 <span>類型:</span>...")
-    all_tags = [] # 準備一個空的列表來裝標籤
+    details = {}
+    all_tags = [] # 專門用來收集所有的「標籤」和「類型」
 
-    try:
-        # 1. 找到所有「標籤」 (例如 "女優:", "類型:")
-        all_spans = soup.find_all('span', class_='text-secondary')
-        
-        for span in all_spans:
-            label = span.text.strip().replace(':', '') # 取得 "女優", "類型"
+    # 1. 找到你說的「藏寶圖」容器
+    container = soup.find('div', class_='space-y-2')
+    if not container:
+        print("  [解析警告] 找不到 'space-y-2' 容器。")
+        return {}, []
+
+    # 2. 找到所有的「資料列」
+    rows = container.find_all('div', class_='text-secondary')
+    
+    for row in rows:
+        label_tag = row.find('span') # 找到第一個 <span> (標籤)
+        if not label_tag:
+            continue
             
-            # 2. 【關鍵】只鎖定「類型」
-            if label == '類型':
-                print("  [解析新邏輯] 找到「類型」列！")
+        label = label_tag.text.strip().replace(':', '') # 取得 "女優", "類型"
+        if not label:
+            continue
+            
+        # 3. 根據不同的標籤，用不同的方式抓「值」
+        
+        # 案例 A: 值是「沒有 <a>」的 (例如 番號, 標題)
+        if label in ['番號', '標題']:
+            value_tag = row.find('span', class_='font-medium')
+            if value_tag:
+                details[label] = value_tag.text.strip()
+        
+        # 案例 B: 值是「<time>」 (發行日期)
+        elif label == '發行日期':
+            value_tag = row.find('time')
+            if value_tag:
+                details[label] = value_tag.text.strip()
+        
+        # 案例 C: 值是「一個或多個 <a>」 (例如 女優, 類型, 標籤)
+        else:
+            links = row.find_all('a')
+            if links:
+                values = [a.text.strip() for a in links if a.text]
                 
-                # 3. 找到這一列所有的 <a> 標籤
-                value_element = span.find_next_sibling()
-                if value_element:
-                    links = value_element.find_all('a')
-                    if links:
-                        values = [a.text.strip() for a in links if a.text]
-                        print(f"  [解析新邏輯] 成功抓到標籤: {values}")
-                        all_tags.extend(values)
-                
-                # 4. 找到了就不用再找了，跳出迴圈
-                break 
-    except Exception as e:
-        print(f"  [解析警告] 抓取「類型」時出錯: {e}")
-
-    # 5. 【關鍵】返回「空的」詳細資料，和「有東西的」標籤列表
-    return {}, all_tags 
+                # 【【【 你的要求：把「類型」和「標籤」合併 】】】
+                if label == '類型':
+                    all_tags.extend(values) # 加到「總標籤」
+                elif label == '標籤':
+                    all_tags.extend(values) # 加到「總標籤」
+                else:
+                    # 其他的 (女優, 男優, 發行商...) 存成列表
+                    details[label] = values
+                    
+    # 4. 為了方便 app.js 處理，我們統一 key 的名稱
+    final_details = {
+        'release_date': details.get('發行日期'),
+        'actress': details.get('女優', []),
+        'male_actor': details.get('男優', []),
+        'series': details.get('系列'),
+        'studio': details.get('發行商'),
+        'director': details.get('導演', [])
+        # 'genres' 和 'labels' 已經被合併到 all_tags 裡了
+    }
+    
+    # 5. 返回「詳細資料物件」和「標籤列表」
+    return final_details, all_tags
 # --- 【【【 輔助函式結束 】】】 ---
 
 
@@ -113,27 +144,31 @@ def scrape_video(code):
 
         title = img_tag.get('title', f"影片: {formatted_code}") 
         
-        # 2. 【【【 第 2 階段：爬取「詳細頁面」】】】
+        # 2. 【【【 全新第 2 階段：爬取「詳細頁面」】】】
         print(f"  [爬蟲第 3 步] 正在爬取影片詳細頁: {target_url}")
-        details = {} # 【【【 關鍵！】】】 details 永遠是空的
+        details = {}
         tags = ["video"] 
         
+        # ===【【【 這就是「錯誤」的地方！】】】===
         try:
             detail_response = scraper.get(target_url)
             detail_soup = BeautifulSoup(detail_response.text, 'html.parser')
             
-            # 呼叫我們「精簡版」的新函式
+            # 呼叫我們的新函式
             details, new_tags = parse_details_page(detail_soup)
             
-            tags.extend(new_tags) # 把「類型」(巨乳, 4K...) 加到 tags 裡
+            # 【【【 你的要求：把「類型」和「標籤」合併 】】】
+            tags.extend(new_tags)
             
-            # (我們還是試著抓一下詳細頁的標題)
+            # (如果詳細頁有「標題」，就用詳細頁的標題)
             detail_title_tag = detail_soup.find('h1', class_='text-nord4')
             if detail_title_tag:
                 title = detail_title_tag.text.strip()
 
+        # ===【【【 我「忘記」加的 except 在這裡！】】】===
         except Exception as e:
             print(f"  [爬蟲警告!] 爬取「詳細頁」失敗: {e}。只使用基本資料。")
+        # ===【【【 修正完畢 】】】===
             
         
         # 3. 下載圖片邏輯 (不變)
@@ -169,8 +204,8 @@ def scrape_video(code):
             "code": formatted_code,
             "imageUrl": internal_image_path,
             "targetUrl": target_url,
-            "tags": tags, # 【【【 關鍵！】】】我們存入了「類型」
-            "details": details # 【【【 關鍵！】】】我們存入了「空」的詳細資料
+            "tags": tags, # 【【【 關鍵！】】】我們存入了「類型」+「標籤」
+            "details": details # 【【【 關鍵！】】】我們存入了「所有詳細資料」
         }
     except Exception as e:
         print(f"  [函式: scrape_video] 爬取影片 {code} 失敗: {e}")

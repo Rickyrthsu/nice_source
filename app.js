@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTagsContainer = document.getElementById('modal-tags-container');
     const modalLink = document.getElementById('modal-link');
     
-    // (我們還是抓取它，只是不去用它)
+    // 【【【 關鍵！】】】
     const modalDetailsContainer = document.getElementById('modal-details-container');
 
     let globalData = []; 
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.targetUrl = data.targetUrl;
         card.dataset.tags = (data.tags || []).join(','); 
         
-        // 【【【 關鍵！】】】 我們還是儲存「空的」 details
+        // 【【【 新增！】】】 把「詳細資料」物件轉成 JSON 字串，存進卡片
         card.dataset.details = JSON.stringify(data.details || {});
 
         // 填入卡片 HTML (不變)
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // === 4. Modal 彈窗邏輯 ===
-    // ===【【【 關鍵修正：移除 details 顯示 】】】===
+    // ===【【【 關鍵修正：顯示 details 】】】===
     resultsContainer.addEventListener('click', (event) => {
         const card = event.target.closest('.card');
         if (!card) return; 
@@ -108,8 +108,33 @@ document.addEventListener('DOMContentLoaded', () => {
         modalImage.src = imageUrl; 
         modalLink.href = data.targetUrl;
 
-        // 2. 【【【 移除！】】】 我們不再顯示「詳細資料」
-        modalDetailsContainer.innerHTML = ''; // 永遠保持清空
+        // 2. 【【【 新增！】】】 處理「詳細資料」
+        modalDetailsContainer.innerHTML = ''; // 先清空
+        
+        // 【【【 關鍵！】】】 我們現在「真的」解析 details
+        const details = JSON.parse(data.details); 
+        
+        // 建立一個「標籤」的中文對照表
+        const detailMap = {
+            'release_date': '發行日期',
+            'series': '系列',
+            'studio': '發行商',
+            'actress': '女優',
+            'male_actor': '男優',
+            'director': '導演'
+            // 我們把 'genres' 和 'labels' 留在下面的「標籤」區
+        };
+
+        // 依序把「詳細資料」填入
+        for (const [key, label] of Object.entries(detailMap)) {
+            // 檢查「爬到的資料 (details[key])」是否存在且「不是空的」
+            if (details[key] && details[key].length > 0) {
+                // 把陣列 (例如 [女優A, 女優B]) 轉成用逗號分隔的字串
+                const value = Array.isArray(details[key]) ? details[key].join(', ') : details[key];
+                // 塞進 HTML
+                modalDetailsContainer.innerHTML += `<p><strong>${label}:</strong> ${value}</p>`;
+            }
+        }
 
         // 3. (不變) 處理「標籤」
         modalTagsContainer.innerHTML = ''; 
