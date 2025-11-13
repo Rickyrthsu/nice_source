@@ -1,5 +1,16 @@
 [
   {
+    "title": "找不到: SSIN-123",
+    "code": "SSIN-123",
+    "imageUrl": "https://via.placeholder.com/200x250.png?text=Not+Found",
+    "targetUrl": "https://missav.com/search/SSIN-123",
+    "tags": [
+      "video",
+      "not-found"
+    ],
+    "category": "video"
+  },
+  {
     "title": "レイカは華麗な僕の女王 THE ANIMATION 第1巻 [中文字幕] - Hanime1.me",
     "imageUrl": "images/anime_115139.jpg",
     "targetUrl": "https://hanime1.me/watch?v=115139",
