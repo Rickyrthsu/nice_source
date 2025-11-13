@@ -1,15 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // === 1. 抓取元素 (不變) ===
+    // === 1. 抓取元素 (新增 modal-details-container) ===
     const resultsContainer = document.getElementById('results-container');
     const navButtons = document.querySelectorAll('.nav-btn');
     const modal = document.getElementById('modal');
-    // ... (所有 modal 元素) ...
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const modalTitle = document.getElementById('modal-title');
     const modalImage = document.getElementById('modal-image');
     const modalTagsContainer = document.getElementById('modal-tags-container');
     const modalLink = document.getElementById('modal-link');
+    
+    // (我們還是抓取它，只是不去用它)
+    const modalDetailsContainer = document.getElementById('modal-details-container');
 
     let globalData = []; 
     
@@ -62,26 +64,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * (輔助函式) 建立單一張卡片
-     * ===【【【 關鍵修正：移除代理！】】】===
+     * ===【【【 關鍵修正：儲存 details 】】】===
      */
     function addCardToPage(data) {
         const card = document.createElement('div');
         card.className = 'card';
         card.style.cursor = 'pointer'; 
 
-        // 1. 【關鍵！】我們現在直接讀取 data.json 裡的網址
-        //    (例如: "images/296340.png" 或 "https://via.placeholder...")
-        //    我們不再需要代理了！
         const imageUrl = data.imageUrl;
 
         // 儲存資料到 dataset 
         card.dataset.title = data.title;
         card.dataset.code = data.code || ''; 
-        card.dataset.imageUrl = imageUrl; // 存原始的
+        card.dataset.imageUrl = imageUrl; 
         card.dataset.targetUrl = data.targetUrl;
         card.dataset.tags = (data.tags || []).join(','); 
+        
+        // 【【【 關鍵！】】】 我們還是儲存「空的」 details
+        card.dataset.details = JSON.stringify(data.details || {});
 
-        // 填入卡片 HTML
+        // 填入卡片 HTML (不變)
         card.innerHTML = `
             <img src="${imageUrl}" alt="${data.title}" crossOrigin="anonymous">
             <div class="card-info">
@@ -93,29 +95,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // === 4. Modal 彈窗邏輯 ===
-    // ===【【【 關鍵修正：移除代理！】】】===
+    // ===【【【 關鍵修正：移除 details 顯示 】】】===
     resultsContainer.addEventListener('click', (event) => {
         const card = event.target.closest('.card');
         if (!card) return; 
 
         const data = card.dataset;
-        
-        // 【關鍵！】Modal 也「直接」使用 imageUrl
         const imageUrl = data.imageUrl;
 
+        // 1. (不變) 填入基本資料
         modalTitle.textContent = data.title;
-        modalImage.src = imageUrl; // Modal 也「直接」使用
+        modalImage.src = imageUrl; 
         modalLink.href = data.targetUrl;
 
-        // 處理標籤
+        // 2. 【【【 移除！】】】 我們不再顯示「詳細資料」
+        modalDetailsContainer.innerHTML = ''; // 永遠保持清空
+
+        // 3. (不變) 處理「標籤」
         modalTagsContainer.innerHTML = ''; 
         if (data.tags && data.tags.length > 0) {
             const tags = data.tags.split(','); 
             tags.forEach(tagName => {
-                const tagElement = document.createElement('span');
-                tagElement.className = 'tag';
-                tagElement.textContent = tagName;
-                modalTagsContainer.appendChild(tagElement);
+                // (我們把 "video" 這個內部標籤過濾掉，不用顯示)
+                if (tagName && tagName !== 'video' && tagName !== 'not-found') {
+                    const tagElement = document.createElement('span');
+                    tagElement.className = 'tag';
+                    tagElement.textContent = tagName;
+                    modalTagsContainer.appendChild(tagElement);
+                }
             });
         }
         modal.classList.add('visible');
