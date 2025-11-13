@@ -23,23 +23,24 @@ jobs:
       contents: write
     
     steps:
+      # 步驟 1: 取得你倉庫的程式碼
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 步驟 2: 設定 Python 環境
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
+      # 步驟 3: 安裝「所有」需要的套件
       - name: Install ALL dependencies
         run: |
           python -m pip install --upgrade pip
-          # 我們把「所有」腳本需要的套件「一次」裝完
           pip install requests beautifulsoup4 cloudscraper
           
-      # ===【【【 關鍵大修正：分開執行！】】】===
+      # 步驟 4.1: 執行「漫畫」爬蟲 (如果類別是 '漫畫')
       - name: Run Comic Scraper
-        # 「if」: 只有當下拉選單 = '漫畫' 時，才執行這一步
         if: github.event.inputs.collection_type == '漫畫'
         env:
           COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
@@ -47,8 +48,8 @@ jobs:
         run: |
           python scripts/scrape_comic.py
           
+      # 步驟 4.2: 執行「影片」爬蟲 (如果類別是 '影片')
       - name: Run Video Scraper
-        # 「if」: 只有當下拉選單 = '影片' 時，才執行這一步
         if: github.event.inputs.collection_type == '影片'
         env:
           COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
@@ -56,9 +57,19 @@ jobs:
         run: |
           python scripts/scrape_video.py
           
+      # 步驟 4.3: 執行「動漫」爬蟲 (如果類別是 '動漫')
       - name: Run Anime Scraper
-        # 「if」: 只有當下拉選單 = '動漫' 時，才執行這一步
         if: github.event.inputs.collection_type == '動漫'
         env:
           COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
-          COLLECTION
+          COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
+        run: |
+          python scripts/scrape_anime.py
+      
+      # 步驟 5: 自動 Commit 變更
+      # (我已經把錯誤的註解和空白行刪掉了)
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore(data): 自動更新收藏"
+          file_pattern: "data.json images"
