@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "title": "影片: SSNI-123",
+    "code": "SSNI-123",
+    "imageUrl": "images/video_SSNI-123.jpg",
+    "targetUrl": "https://missav.ws/dm28/ssni-123",
+    "tags": [
+      "video"
+    ],
+    "category": "video"
+  }
+]
