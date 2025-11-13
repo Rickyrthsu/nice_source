@@ -31,10 +31,13 @@ jobs:
         with:
           python-version: '3.10'
 
+      # ===【【【 關鍵修正！】】】===
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
+          # (新) 我們告訴它，多安裝 cloudscraper
+          pip install cloudscraper
           
       - name: Run scraper
         env:
@@ -47,10 +50,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "chore(data): 自動更新收藏"
-          
-          # ===【【【 關鍵的 Bug 修正！】】】===
-          # 舊的 (錯誤的): file_pattern: "data.json images/*"
-          # 新的 (正確的): 
-          # 我們告訴它 commit「data.json」和「images 這個資料夾本身」
-          # 這樣就算 images 是空的，git 也不會報錯。
           file_pattern: "data.json images"
