@@ -12,15 +12,15 @@ from urllib.parse import urlparse, quote # 引入 quote 來處理 URL 編碼
 def scrape_video(code):
     print(f"  [函式: scrape_video] 開始爬取 {code}...")
     
-    # 1. 【【【 關鍵！】】】 格式化你的輸入
-    #    例如 "FC2 PPV 3498155" -> "FC2-PPV-3498155"
+    # 1. 格式化你的輸入
     formatted_code = code.replace(" ", "-").upper()
-    
-    # 對番號進行 URL 編碼，確保網址正確
     encoded_code = quote(formatted_code)
     
-    # 2. 組合 MissAV 的「搜尋」網址
-    search_url = f"https://missav.com/search/{encoded_code}"
+    # 2. 【【【 關鍵修正 #1：更換網域！】】】
+    #    舊的 (已死): missav.com
+    #    新的 (正確): missav.ws
+    base_url = "https://missav.ws"
+    search_url = f"{base_url}/search/{encoded_code}"
     print(f"  [爬蟲第 1 步] 正在用 Cloudscraper 抓取「搜尋頁」: {search_url}")
 
     # 3. 建立「終極爬蟲」實例
@@ -35,12 +35,10 @@ def scrape_video(code):
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # 6. 在 HTML 中「尋找」【第一筆】搜尋結果
-        #    (MissAV 的卡片 class 是 'thumbnail')
         first_result = soup.find('div', class_='thumbnail')
         
         if not first_result:
             print(f"  [爬蟲警告!] 在 MissAV 上找不到番號 {formatted_code} 的任何結果。")
-            # 返回一個「找不到」的範本
             return {
                 "title": f"找不到: {formatted_code}",
                 "code": formatted_code,
@@ -55,25 +53,24 @@ def scrape_video(code):
         link_tag = first_result.find('a')
         img_tag = first_result.find('img')
         
-        target_url = link_tag['href']
-        # 標題在 <img> 標籤的 'title' 屬性裡
+        # 8. 【【【 關鍵修正 #2：補上完整網域！】】】
+        #    link_tag['href'] 只會是 "/dm28/ssni-123" (相對路徑)
+        #    我們必須補上 base_url 才會變成完整連結
+        target_url = f"{base_url}{link_tag['href']}"
+        
         title = img_tag['title'] 
-        # 封面圖在 <img> 標籤的 'src' 屬性裡
         external_image_url = img_tag['src']
         
-        # 8. 抓取標籤 (MissAV 的標籤在卡片「外面」，解析很麻煩，我們先省略)
-        tags = ["video"] # 先給一個預設標籤
+        tags = ["video"] 
         
-        # 9. 【【【 下載圖片邏輯 (跟漫畫一樣) 】】】
+        # 9. 下載圖片邏輯 (跟漫畫一樣)
         images_dir = Path('images')
         images_dir.mkdir(exist_ok=True)
         
-        # 取得圖片的副檔名 (例如 .jpg)
         image_ext = Path(urlparse(external_image_url).path).suffix
         if not image_ext:
-            image_ext = ".jpg" # 預設 .jpg
+            image_ext = ".jpg" 
 
-        # 我們的新檔名，例如 "video_SSNI-123.jpg"
         our_new_filename = f"video_{formatted_code}{image_ext}"
         internal_image_path = images_dir / our_new_filename
         
@@ -96,12 +93,11 @@ def scrape_video(code):
         return {
             "title": title,
             "code": formatted_code,
-            "imageUrl": str(internal_image_path), # 【【【 關鍵！】】】我們儲存「內部」路徑
-            "targetUrl": target_url,
+            "imageUrl": str(internal_image_path), # 儲存「內部」路徑
+            "targetUrl": target_url, # 儲存「完整」網址
             "tags": tags
         }
     except Exception as e:
-        # 如果連 cloudscraper 都失敗，我們就會在這裡看到錯誤
         print(f"  [函式: scrape_video] 爬取影片 {code} 失敗: {e}")
         return None
 
