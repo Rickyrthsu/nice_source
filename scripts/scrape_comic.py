@@ -34,6 +34,9 @@ def scrape_comic(code):
         our_new_filename = f"{code}.{thumb_type}"
         internal_image_path = images_dir / our_new_filename
         
+        # 這是我們最終要存進 data.json 的圖片路徑
+        final_image_url_to_save = ""
+        
         try:
             print(f"  [爬蟲第 3 步] 正在從 {external_image_url} 下載圖片...")
             image_response = requests.get(external_image_url, stream=True)
@@ -44,33 +47,37 @@ def scrape_comic(code):
                 shutil.copyfileobj(image_response.raw, f)
             print(f"  [爬蟲第 4 步] 圖片已成功儲存到: {internal_image_path}")
             
+            # 成功：儲存我們「下載的」圖片路徑
+            final_image_url_to_save = str(internal_image_path)
+            
         except Exception as img_e:
             print(f"  [爬蟲警告!] 圖片「下載失敗」: {img_e}")
-            internal_image_path = "https://via.placeholder.com/200x250.png?text=Image+Failed"
+            
+            # ===【【【 你的「小微調」在這裡！】】】===
+            # 失敗：儲存你指定的「icon.png」
+            # 我們假設 icon.png 放在你網站的根目錄
+            final_image_url_to_save = "icon.png"
+            # ===【【【 微調完畢 】】】===
 
         result = {
             "title": title,
             "code": code,
-            "imageUrl": str(internal_image_path), 
+            "imageUrl": final_image_url_to_save, # <--- 使用最終的路徑
             "targetUrl": target_url,       
             "tags": tags
         }
         return result
 
     except Exception as e:
+        # 這會捕捉到 404 (Not Found)
         print(f"  [函式: scrape_comic] 爬取漫畫 {code} 失敗 (API 錯誤): {e}")
         return None
 
-# --- 主程式 (所有腳本共用的) ---
+# --- 主程式 (所有腳本共用的，100% 不用動) ---
 def main():
-    # ===【【【 你的 BUG 就在這裡 】】】===
-    # 「定義」變數必須在「使用」變數之前！
-    
-    # 1. 【先定義】
     ctype = os.environ.get('COLLECTION_TYPE')
     cvalue = os.environ.get('COLLECTION_VALUE')
     
-    # 2. 【再檢查】
     if not ctype or not cvalue:
         print("錯誤：找不到類別或輸入值 (COLLECTION_TYPE or COLLECTION_VALUE)")
         sys.exit(1) 
@@ -81,7 +88,6 @@ def main():
     new_entry = None
     category_map = { '漫畫': 'comic', '影片': 'video', '動漫': 'anime' }
     
-    # 3. 【最後才使用】
     # 這是這個檔案「唯一」的任務
     new_entry = scrape_comic(cvalue)
     
