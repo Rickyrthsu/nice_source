@@ -21,8 +21,11 @@ jobs:
           echo "錯誤：未輸入 'right'。取消清空操作。"
           exit 1 
           
+      # ===【【【 關鍵的 Bug 修正！】】】===
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          ref: main # 【【【 加上這一行！】】】
 
       - name: Clear Data and Images
         run: |
@@ -40,12 +43,10 @@ jobs:
           fi
           echo "--- 清空完畢 ---"
           
-      # ===【【【 關鍵的 Bug 修正！手動 Git！】】】===
+      # ===【【【 關鍵的 Bug 修正！】】】===
+      # 我們換回「更聰明」的自動 commit 工具
       - name: Commit Reset
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git pull origin main --rebase
-          git add data.json images
-          git commit -m "chore(data): ⚠️ RESET - 清空 data.json 與 images 資料夾"
-          git push origin main
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore(data): ⚠️ RESET - 清空 data.json 與 images 資料夾"
+          file_pattern: "data.json images"

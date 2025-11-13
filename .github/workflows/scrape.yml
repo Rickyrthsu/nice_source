@@ -23,8 +23,11 @@ jobs:
       contents: write
     
     steps:
+      # ===【【【 關鍵的 Bug 修正！】】】===
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          ref: main # 【【【 加上這一行！它會抓取「整個 main 分支」！】】】
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -60,24 +63,10 @@ jobs:
         run: |
           python scripts/scrape_anime.py
       
-      # ===【【【 關鍵的 Bug 修正！手動 Git！】】】===
-      - name: Commit and Push changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          # 【【【 關鍵！】】】 先拉回 (pull) 遠端的變更，--rebase 確保我們的 commit 疊在最上面
-          git pull origin main --rebase
-          
-          # 把我們的變更 (新的 data.json 和 images) 加進來
-          # "|| exit 0" 是為了防止在「沒有變更」時 git add 報錯
-          git add data.json images || exit 0
-          
-          # 檢查是否有任何東西被 add
-          if ! git diff --cached --quiet; then
-            echo "偵測到變更，準備 commit..."
-            git commit -m "chore(data): 自動更新收藏"
-            git push origin main
-          else
-            echo "沒有偵測到 data.json 或 images/ 的變更，無需 commit。"
-          fi
+      # ===【【【 關鍵的 Bug 修正！】】】===
+      # 我們換回「更聰明」的自動 commit 工具
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore(data): 自動更新收藏"
+          file_pattern: "data.json images"

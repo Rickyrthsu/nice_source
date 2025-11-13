@@ -15,8 +15,11 @@ jobs:
       contents: write
     
     steps:
+      # ===【【【 關鍵的 Bug 修正！】】】===
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          ref: main # 【【【 加上這一行！】】】
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -29,12 +32,10 @@ jobs:
         run: |
           python scripts/delete.py
           
-      # ===【【【 關鍵的 Bug 修正！手動 Git！】】】===
+      # ===【【【 關鍵的 Bug 修正！】】】===
+      # 我們換回「更聰明」的自動 commit 工具
       - name: Commit changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git pull origin main --rebase
-          git add data.json images
-          git commit -m "chore(data): 自動刪除收藏 (${{ github.event.inputs.delete_code }})"
-          git push origin main
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore(data): 自動刪除收藏 (${{ github.event.inputs.delete_code }})"
+          file_pattern: "data.json images"
