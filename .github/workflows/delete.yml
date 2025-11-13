@@ -3,8 +3,17 @@ name: 刪除收藏 (Delete Collection)
 on:
   workflow_dispatch:
     inputs:
-      delete_code:
-        description: '請輸入要「刪除」的番號 (例如 SSNI-123)'
+      # ===【【【 關鍵修正：加入「類別」下拉選單！】】】===
+      delete_type:
+        description: '請選擇要刪除的類別'
+        required: true
+        type: choice
+        options:
+          - 漫畫
+          - 影片
+          - 動漫
+      delete_value:
+        description: '請輸入 番號 (漫畫/影片) 或 網址 (動漫)'
         required: true
         type: string
 
@@ -19,7 +28,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          ref: main # 【【【 加上這一行！】】】
+          ref: main # 【【【 加上這一行！它會抓取「整個 main 分支」！】】】
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -28,7 +37,9 @@ jobs:
           
       - name: Run delete script
         env:
-          DELETE_CODE: ${{ github.event.inputs.delete_code }}
+          # ===【【【 關鍵修正：傳入「兩個」變數！】】】===
+          DELETE_TYPE: ${{ github.event.inputs.delete_type }}
+          DELETE_VALUE: ${{ github.event.inputs.delete_value }}
         run: |
           python scripts/delete.py
           
@@ -37,5 +48,5 @@ jobs:
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "chore(data): 自動刪除收藏 (${{ github.event.inputs.delete_code }})"
+          commit_message: "chore(data): 自動刪除收藏 (${{ github.event.inputs.delete_value }})"
           file_pattern: "data.json images"
