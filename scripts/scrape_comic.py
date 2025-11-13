@@ -34,7 +34,6 @@ def scrape_comic(code):
         our_new_filename = f"{code}.{thumb_type}"
         internal_image_path = images_dir / our_new_filename
         
-        # 這是我們最終要存進 data.json 的圖片路徑
         final_image_url_to_save = ""
         
         try:
@@ -47,29 +46,27 @@ def scrape_comic(code):
                 shutil.copyfileobj(image_response.raw, f)
             print(f"  [爬蟲第 4 步] 圖片已成功儲存到: {internal_image_path}")
             
-            # 成功：儲存我們「下載的」圖片路徑
             final_image_url_to_save = str(internal_image_path)
             
         except Exception as img_e:
             print(f"  [爬蟲警告!] 圖片「下載失敗」: {img_e}")
             
             # ===【【【 你的「小微調」在這裡！】】】===
-            # 失敗：儲存你指定的「icon.png」
-            # 我們假設 icon.png 放在你網站的根目錄
-            final_image_url_to_save = "icon.png"
+            # 舊的: "icon.png" (錯誤)
+            # 新的: "images/icon.png" (正確，假設你把 icon.png 放在 images/ 裡)
+            final_image_url_to_save = "images/icon.png"
             # ===【【【 微調完畢 】】】===
 
         result = {
             "title": title,
             "code": code,
-            "imageUrl": final_image_url_to_save, # <--- 使用最終的路徑
+            "imageUrl": final_image_url_to_save, 
             "targetUrl": target_url,       
             "tags": tags
         }
         return result
 
     except Exception as e:
-        # 這會捕捉到 404 (Not Found)
         print(f"  [函式: scrape_comic] 爬取漫畫 {code} 失敗 (API 錯誤): {e}")
         return None
 
