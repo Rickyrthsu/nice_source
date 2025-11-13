@@ -241,3 +241,25 @@ body {
 .modal-action-btn:hover {
     background-color: var(--text-color);
 }
+
+
+.modal-details {
+    font-size: 14px;
+    line-height: 1.8;
+    margin-bottom: 20px;
+    padding-top: 10px;
+    text-align: left;
+    color: var(--text-color);
+    opacity: 0.9;
+    border-top: 1px solid var(--secondary-color); /* 加一條分隔線 */
+}
+.modal-details p {
+    margin-bottom: 4px;
+}
+.modal-details strong {
+    /* 這是「女優:」, 「類型:」 這些標籤 */
+    color: var(--primary-color);
+    margin-right: 8px;
+    display: inline-block;
+    min-width: 60px; /* 讓標籤對齊 */
+}
