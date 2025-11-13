@@ -5,8 +5,8 @@ import sys
 import shutil 
 from pathlib import Path 
 from bs4 import BeautifulSoup
-import cloudscraper # 影片爬蟲也需要「終極神器」
-from urllib.parse import urlparse, quote # 引入 quote 來處理 URL 編碼
+import cloudscraper 
+from urllib.parse import urlparse, quote 
 
 # --- 輔助函式：爬取影片 (MissAV) ---
 def scrape_video(code):
@@ -17,7 +17,7 @@ def scrape_video(code):
     encoded_code = quote(formatted_code)
     
     # 2. 組合 MissAV 的「搜尋」網址
-    base_url = "https://missav.ws"
+    base_url = "https://missav.ws" # 我們用它來「檢查」，而不是「相加」
     search_url = f"{base_url}/search/{encoded_code}"
     print(f"  [爬蟲第 1 步] 正在用 Cloudscraper 抓取「搜尋頁」: {search_url}")
 
@@ -32,54 +32,53 @@ def scrape_video(code):
         # 5. 解析 HTML
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 6. 【【【 關鍵修正 #1：加入「Google Fallback」邏輯 】】】
-        #    在 HTML 中「尋找」【第一筆】搜尋結果
+        # 6. 在 HTML 中「尋找」【第一筆】搜尋結果
         first_result = soup.find('div', class_='thumbnail')
         
         if not first_result:
-            # === 如果「真的」找不到任何結果 ===
+            # === (Google Fallback 邏輯 - 保持不變) ===
             print(f"  [爬蟲警告!] 在 MissAV 上找不到番號 {formatted_code}。")
             print(f"  [爬蟲警告!] 正在執行你的「Google Fallback」計畫...")
-
-            # 我們就回傳一個「Google 搜尋」的卡片
             return {
-                "title": f"在 Google 搜尋: {formatted_code}", # 標題
+                "title": f"在 Google 搜尋: {formatted_code}",
                 "code": formatted_code,
-                "imageUrl": "https://via.placeholder.com/200x250.png?text=Not+Found", # 預設圖片
-                "targetUrl": f"https://www.google.com/search?q=missav+{encoded_code}", # 【【【 你的要求！】】】
+                "imageUrl": "https://via.placeholder.com/200x250.png?text=Not+Found", 
+                "targetUrl": f"https://www.google.com/search?q=missav+{encoded_code}", 
                 "tags": ["video", "not-found"]
             }
 
-        # === 如果有找到結果，我們就繼續 ===
         print("  [爬蟲第 2 步] 成功在 HTML 中找到第一筆結果。")
         
-        # 7. 【【【 關鍵修正 #2：用「安全」的方式解析 】】】
+        # 7. 【【【 關鍵 Bug 修正區 】】】
         link_tag = first_result.find('a')
         img_tag = first_result.find('img')
 
-        # 檢查標籤是否存在
         if not link_tag or not img_tag:
             print("  [爬蟲錯誤!] 找到 thumbnail，但找不到 <a> 或 <img> 標籤。")
-            return None # 讓 Action 失敗
+            return None
 
-        # 1. 安全地取得 target_url
+        # 1. 【Bug 1 修正 (URL)】
         href = link_tag.get('href')
         if not href:
              print("  [爬蟲錯誤!] <a> 標籤沒有 'href'。")
              return None
-        target_url = f"{base_url}{href}"
-
-        # 2. 安全地取得 title (這就是你 Bug 的修復！)
-        #    我們用 .get('title', ...)
-        #    如果 'title' 屬性不存在，它會用 formatted_code 當作「備案」標題
-        title = img_tag.get('title', f"影片: {formatted_code}") 
-
-        # 3. 安全地取得 external_image_url
-        external_image_url = img_tag.get('src')
-        if not external_image_url:
-            print("  [爬蟲警告!] <img> 標籤沒有 'src'，使用預設圖片。")
-            external_image_url = "https://via.placeholder.com/200x250.png?text=Image+Missing"
         
+        # 檢查 href 是不是「已經」是完整網址了
+        if href.startswith('http'):
+            target_url = href # 100% 正確，直接使用
+        else:
+            target_url = f"{base_url}{href}" # 它是相對路徑，補上 base_url
+
+        # 2. 【Bug 2 修正 (Image)】
+        #    我們「優先」抓 'data-src'，如果「抓不到」，才改抓 'src'
+        external_image_url = img_tag.get('data-src', img_tag.get('src'))
+        
+        if not external_image_url:
+            print("  [爬蟲警告!] <img> 標籤沒有 'src' 或 'data-src'，使用預設圖片。")
+            external_image_url = "https://via.placeholder.com/200x250.png?text=Image+Missing"
+
+        # 3. (不變) 安全地取得 title
+        title = img_tag.get('title', f"影片: {formatted_code}") 
         # === 修正完畢 ===
         
         tags = ["video"] 
@@ -89,17 +88,14 @@ def scrape_video(code):
         images_dir.mkdir(exist_ok=True)
         
         image_ext = Path(urlparse(external_image_url).path).suffix
-        if not image_ext or image_ext == ".gif": # 我們不抓 gif
-            image_ext = ".jpg" 
-
-        our_new_filename = f"video_{formatted_code}{image_ext}"
-        internal_image_path = images_dir / our_new_filename
-        
-        # 如果 external_image_url 只是預設圖，我們就「不要」下載
-        if "placeholder.com" in external_image_url:
-             print(f"  [爬蟲警告!] 圖片網址是預設圖，跳過下載。")
-             internal_image_path = external_image_url
+        if not image_ext or image_ext == ".gif" or "data:image" in external_image_url:
+            # 如果還是抓到 data:image (代表 data-src 也沒有)，就用預設
+            image_ext = ".jpg"
+            internal_image_path = "https://via.placeholder.com/200x250.png?text=Image+Failed"
         else:
+            our_new_filename = f"video_{formatted_code}{image_ext}"
+            internal_image_path = images_dir / our_new_filename
+            
             try:
                 print(f"  [爬蟲第 3 步] 正在從 {external_image_url} 下載圖片...")
                 image_response = requests.get(external_image_url, stream=True)
