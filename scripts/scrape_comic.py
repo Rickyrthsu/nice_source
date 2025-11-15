@@ -52,9 +52,9 @@ def scrape_comic(code):
             print(f"  [爬蟲警告!] 圖片「下載失敗」: {img_e}")
             
             # ===【【【 你的「小微調」在這裡！】】】===
-            # 舊的: "icon.png" (錯誤)
-            # 新的: "images/icon.png" (正確，假設你把 icon.png 放在 images/ 裡)
-            final_image_url_to_save = "images/icon.png"
+            # 舊的: "images/icon.png" (錯誤)
+            # 新的: "scripts/icon.jpg" (正確，假設你把 icon.jpg 放在 scripts/ 裡)
+            final_image_url_to_save = "scripts/icon.jpg"
             # ===【【【 微調完畢 】】】===
 
         result = {
