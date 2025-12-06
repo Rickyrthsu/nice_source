@@ -1,4 +1,8 @@
 missav
+
 tktube
+yt-dlp --add-header "Referer: https://tktube.com/" "你剛剛複製的.m3u8網址"
+
 jav
+
 ppp.porn
