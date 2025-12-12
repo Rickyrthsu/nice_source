@@ -22,7 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function init() {
         console.log('初始化，準備讀取 data.json...');
         try {
-            const response = await fetch('data.json', { cache: 'no-cache' });
+            // 加上時間戳記 timestamp 防止 json 被快取
+            const response = await fetch(`data.json?t=${new Date().getTime()}`);
             if (!response.ok) throw new Error(`無法讀取 data.json! 狀態: ${response.status}`);
             
             globalData = await response.json();
@@ -36,29 +37,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // === 【【【 核心邏輯：統一過濾函式 (已升級) 】】】 ===
+    // === 【【【 核心邏輯：超級防呆過濾 】】】 ===
     function applyFilters() {
+        const term = currentSearchTerm.toLowerCase().trim();
+
         const filteredData = globalData.filter(item => {
             // 1. 檢查類別
             const matchCategory = (currentCategory === 'all') || (item.category === currentCategory);
             
-            // 2. 檢查搜尋關鍵字 (忽略大小寫)
-            const term = currentSearchTerm.toLowerCase().trim();
+            // 如果沒有輸入關鍵字，直接回傳 true (只看類別)
+            if (!term) return matchCategory;
+
+            // 2. 準備搜尋資料 (將所有可能為 null 的欄位轉為空字串或空陣列)
+            const title = (item.title || "").toLowerCase();
+            const code = (item.code || "").toLowerCase();
+            const tags = item.tags || [];
             
-            // 【新增】檢查女優 (安全地讀取 details.actress)
-            // 因為漫畫/動漫可能沒有 details，或者 details 裡沒有 actress，所以要用 ?. 和 || []
+            // 【關鍵修正】安全地取得女優列表
+            // 漫畫類別可能完全沒有 details，所以要用 ?.
+            // 就算有 details，actress 也可能是 undefined，所以要 || []
             const actressList = item.details?.actress || [];
-            // 檢查女優列表裡，有沒有任何一個名字包含了搜尋關鍵字
+
+            // 3. 開始比對
+            const matchTitle = title.includes(term);
+            const matchCode = code.includes(term);
+            const matchTags = tags.some(tag => tag.toLowerCase().includes(term));
+            
+            // 【關鍵修正】搜尋女優
+            // 確保 actressList 是陣列才使用 .some()
             const matchActress = Array.isArray(actressList) && actressList.some(name => name.toLowerCase().includes(term));
 
-            const matchSearch = 
-                !term || // 如果沒輸入關鍵字，就當作符合
-                item.title.toLowerCase().includes(term) || // 搜標題
-                (item.code && item.code.toLowerCase().includes(term)) || // 搜番號
-                (item.tags && item.tags.some(tag => tag.toLowerCase().includes(term))) || // 搜標籤
-                matchActress; // 【【【 關鍵！加入搜女優 】】】
+            // 只要有任何一個欄位符合，就算選中
+            const matchSearch = matchTitle || matchCode || matchTags || matchActress;
 
-            // 兩個條件都要符合
             return matchCategory && matchSearch;
         });
 
@@ -86,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCards(dataArray) {
         resultsContainer.innerHTML = '';
         if (dataArray.length === 0) {
-            resultsContainer.innerHTML = '<p style="text-align: center; width: 100%;">沒有找到符合的收藏。</p>';
+            resultsContainer.innerHTML = '<p style="text-align: center; width: 100%; padding: 20px;">沒有找到符合的收藏。</p>';
             return;
         }
         dataArray.forEach(data => {
