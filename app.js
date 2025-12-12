@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const resultsContainer = document.getElementById('results-container');
     const navButtons = document.querySelectorAll('.nav-btn');
-    const searchInput = document.getElementById('search-input'); // 【新增】抓取搜尋框
+    const searchInput = document.getElementById('search-input'); 
 
     // Modal 元素
     const modal = document.getElementById('modal');
@@ -15,8 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let globalData = []; 
     
-    // 【【【 新增：狀態變數 】】】
-    // 我們用這兩個變數來記住「現在選了什麼類別」和「現在輸入了什麼關鍵字」
     let currentCategory = 'all'; 
     let currentSearchTerm = '';
 
@@ -30,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
             globalData = await response.json();
             console.log('成功讀取 data.json:', globalData);
             
-            // 初始渲染
             applyFilters();
             
         } catch (error) {
@@ -39,8 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // === 【【【 核心邏輯：統一過濾函式 】】】 ===
-    // 這個函式會同時檢查「類別」和「搜尋關鍵字」
+    // === 【【【 核心邏輯：統一過濾函式 (已升級) 】】】 ===
     function applyFilters() {
         const filteredData = globalData.filter(item => {
             // 1. 檢查類別
@@ -48,11 +44,19 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // 2. 檢查搜尋關鍵字 (忽略大小寫)
             const term = currentSearchTerm.toLowerCase().trim();
+            
+            // 【新增】檢查女優 (安全地讀取 details.actress)
+            // 因為漫畫/動漫可能沒有 details，或者 details 裡沒有 actress，所以要用 ?. 和 || []
+            const actressList = item.details?.actress || [];
+            // 檢查女優列表裡，有沒有任何一個名字包含了搜尋關鍵字
+            const matchActress = Array.isArray(actressList) && actressList.some(name => name.toLowerCase().includes(term));
+
             const matchSearch = 
                 !term || // 如果沒輸入關鍵字，就當作符合
                 item.title.toLowerCase().includes(term) || // 搜標題
                 (item.code && item.code.toLowerCase().includes(term)) || // 搜番號
-                (item.tags && item.tags.some(tag => tag.toLowerCase().includes(term))); // 搜標籤
+                (item.tags && item.tags.some(tag => tag.toLowerCase().includes(term))) || // 搜標籤
+                matchActress; // 【【【 關鍵！加入搜女優 】】】
 
             // 兩個條件都要符合
             return matchCategory && matchSearch;
@@ -67,15 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
             navButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             
-            // 更新狀態，然後重新過濾
             currentCategory = button.dataset.category;
             applyFilters();
         });
     });
 
-    // === 【【【 新增：事件監聽：搜尋框 】】】 ===
+    // === 事件監聽：搜尋框 ===
     searchInput.addEventListener('input', (e) => {
-        // 更新狀態，然後重新過濾
         currentSearchTerm = e.target.value;
         applyFilters();
     });
