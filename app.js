@@ -1,60 +1,90 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // === 1. 抓取元素 (新增 modal-details-container) ===
     const resultsContainer = document.getElementById('results-container');
     const navButtons = document.querySelectorAll('.nav-btn');
+    const searchInput = document.getElementById('search-input'); // 【新增】抓取搜尋框
+
+    // Modal 元素
     const modal = document.getElementById('modal');
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const modalTitle = document.getElementById('modal-title');
     const modalImage = document.getElementById('modal-image');
     const modalTagsContainer = document.getElementById('modal-tags-container');
     const modalLink = document.getElementById('modal-link');
-    
-    // 【【【 關鍵！】】】
     const modalDetailsContainer = document.getElementById('modal-details-container');
 
     let globalData = []; 
     
-    // === 2. 初始化 (不變) ===
+    // 【【【 新增：狀態變數 】】】
+    // 我們用這兩個變數來記住「現在選了什麼類別」和「現在輸入了什麼關鍵字」
+    let currentCategory = 'all'; 
+    let currentSearchTerm = '';
+
+    // === 初始化 ===
     async function init() {
         console.log('初始化，準備讀取 data.json...');
         try {
             const response = await fetch('data.json', { cache: 'no-cache' });
-            if (!response.ok) {
-                throw new Error(`無法讀取 data.json! 狀態: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`無法讀取 data.json! 狀態: ${response.status}`);
+            
             globalData = await response.json();
             console.log('成功讀取 data.json:', globalData);
-            renderCards(globalData);
+            
+            // 初始渲染
+            applyFilters();
+            
         } catch (error) {
             console.error('初始化失敗:', error);
-            resultsContainer.innerHTML = `<p style="color: red; text-align: center;">讀取資料庫 (data.json) 失敗: ${error.message}<br>請檢查 data.json 檔案是否存在於專案根目錄。</p>`;
+            resultsContainer.innerHTML = `<p style="color: red; text-align: center;">讀取資料庫失敗: ${error.message}</p>`;
         }
     }
 
-    // === 3. 篩選邏輯 (不變) ===
+    // === 【【【 核心邏輯：統一過濾函式 】】】 ===
+    // 這個函式會同時檢查「類別」和「搜尋關鍵字」
+    function applyFilters() {
+        const filteredData = globalData.filter(item => {
+            // 1. 檢查類別
+            const matchCategory = (currentCategory === 'all') || (item.category === currentCategory);
+            
+            // 2. 檢查搜尋關鍵字 (忽略大小寫)
+            const term = currentSearchTerm.toLowerCase().trim();
+            const matchSearch = 
+                !term || // 如果沒輸入關鍵字，就當作符合
+                item.title.toLowerCase().includes(term) || // 搜標題
+                (item.code && item.code.toLowerCase().includes(term)) || // 搜番號
+                (item.tags && item.tags.some(tag => tag.toLowerCase().includes(term))); // 搜標籤
+
+            // 兩個條件都要符合
+            return matchCategory && matchSearch;
+        });
+
+        renderCards(filteredData);
+    }
+
+    // === 事件監聽：類別按鈕 ===
     navButtons.forEach(button => {
         button.addEventListener('click', () => {
             navButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
-            const category = button.dataset.category;
-            console.log(`篩選類別: ${category}`);
-            if (category === 'all') {
-                renderCards(globalData);
-            } else {
-                const filteredData = globalData.filter(item => item.category === category);
-                renderCards(filteredData);
-            }
+            
+            // 更新狀態，然後重新過濾
+            currentCategory = button.dataset.category;
+            applyFilters();
         });
     });
 
-    /**
-     * (輔助函式) 渲染一組卡片 (不變)
-     */
+    // === 【【【 新增：事件監聽：搜尋框 】】】 ===
+    searchInput.addEventListener('input', (e) => {
+        // 更新狀態，然後重新過濾
+        currentSearchTerm = e.target.value;
+        applyFilters();
+    });
+
+    // === 渲染卡片 (保持不變) ===
     function renderCards(dataArray) {
         resultsContainer.innerHTML = '';
         if (dataArray.length === 0) {
-            resultsContainer.innerHTML = '<p style="text-align: center;">這個分類目前沒有資料。</p>';
+            resultsContainer.innerHTML = '<p style="text-align: center; width: 100%;">沒有找到符合的收藏。</p>';
             return;
         }
         dataArray.forEach(data => {
@@ -62,10 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /**
-     * (輔助函式) 建立單一張卡片
-     * ===【【【 關鍵修正：儲存 details 】】】===
-     */
+    // === 建立單張卡片 (保持不變) ===
     function addCardToPage(data) {
         const card = document.createElement('div');
         card.className = 'card';
@@ -73,17 +100,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const imageUrl = data.imageUrl;
 
-        // 儲存資料到 dataset 
         card.dataset.title = data.title;
         card.dataset.code = data.code || ''; 
         card.dataset.imageUrl = imageUrl; 
         card.dataset.targetUrl = data.targetUrl;
         card.dataset.tags = (data.tags || []).join(','); 
-        
-        // 【【【 新增！】】】 把「詳細資料」物件轉成 JSON 字串，存進卡片
         card.dataset.details = JSON.stringify(data.details || {});
 
-        // 填入卡片 HTML (不變)
         card.innerHTML = `
             <img src="${imageUrl}" alt="${data.title}" crossOrigin="anonymous">
             <div class="card-info">
@@ -94,8 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainer.insertAdjacentElement('afterbegin', card); 
     }
 
-    // === 4. Modal 彈窗邏輯 ===
-    // ===【【【 關鍵修正：顯示 details 】】】===
+    // === Modal 邏輯 (保持不變) ===
     resultsContainer.addEventListener('click', (event) => {
         const card = event.target.closest('.card');
         if (!card) return; 
@@ -103,18 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = card.dataset;
         const imageUrl = data.imageUrl;
 
-        // 1. (不變) 填入基本資料
         modalTitle.textContent = data.title;
         modalImage.src = imageUrl; 
         modalLink.href = data.targetUrl;
 
-        // 2. 【【【 新增！】】】 處理「詳細資料」
-        modalDetailsContainer.innerHTML = ''; // 先清空
-        
-        // 【【【 關鍵！】】】 我們現在「真的」解析 details
+        modalDetailsContainer.innerHTML = ''; 
         const details = JSON.parse(data.details); 
         
-        // 建立一個「標籤」的中文對照表
         const detailMap = {
             'release_date': '發行日期',
             'series': '系列',
@@ -122,26 +139,19 @@ document.addEventListener('DOMContentLoaded', () => {
             'actress': '女優',
             'male_actor': '男優',
             'director': '導演'
-            // 我們把 'genres' 和 'labels' 留在下面的「標籤」區
         };
 
-        // 依序把「詳細資料」填入
         for (const [key, label] of Object.entries(detailMap)) {
-            // 檢查「爬到的資料 (details[key])」是否存在且「不是空的」
             if (details[key] && details[key].length > 0) {
-                // 把陣列 (例如 [女優A, 女優B]) 轉成用逗號分隔的字串
                 const value = Array.isArray(details[key]) ? details[key].join(', ') : details[key];
-                // 塞進 HTML
                 modalDetailsContainer.innerHTML += `<p><strong>${label}:</strong> ${value}</p>`;
             }
         }
 
-        // 3. (不變) 處理「標籤」
         modalTagsContainer.innerHTML = ''; 
         if (data.tags && data.tags.length > 0) {
             const tags = data.tags.split(','); 
             tags.forEach(tagName => {
-                // (我們把 "video" 這個內部標籤過濾掉，不用顯示)
                 if (tagName && tagName !== 'video' && tagName !== 'not-found') {
                     const tagElement = document.createElement('span');
                     tagElement.className = 'tag';
@@ -153,12 +163,10 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.add('visible');
     });
 
-    // 關閉 Modal (不變)
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     modal.addEventListener('click', (event) => {
         if (event.target === modal) modal.classList.remove('visible');
     });
 
-    // === 5. 執行初始化 (不變) ===
     init();
 });
