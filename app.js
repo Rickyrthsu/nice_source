@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function init() {
         console.log('初始化，準備讀取 data.json...');
         try {
-            // 加上時間戳記 timestamp 防止 json 被快取
             const response = await fetch(`data.json?t=${new Date().getTime()}`);
             if (!response.ok) throw new Error(`無法讀取 data.json! 狀態: ${response.status}`);
             
@@ -41,18 +40,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const term = currentSearchTerm.toLowerCase().trim();
 
         const filteredData = globalData.filter(item => {
-            // 1. 檢查類別 (如果目前是 'actor'，這裡就會只篩選出 actor)
             const matchCategory = (currentCategory === 'all') || (item.category === currentCategory);
             
             if (!term) return matchCategory;
 
-            // 2. 準備搜尋資料
             const title = (item.title || "").toLowerCase();
             const code = (item.code || "").toLowerCase();
             const tags = item.tags || [];
             const actressList = item.details?.actress || [];
 
-            // 3. 開始比對
             const matchTitle = title.includes(term);
             const matchCode = code.includes(term);
             const matchTags = tags.some(tag => tag.toLowerCase().includes(term));
@@ -74,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             currentCategory = button.dataset.category;
             applyFilters();
+            
+            // 每次切換類別時，順便把視窗捲回最上面
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     });
 
@@ -95,19 +94,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // === 【關鍵修改】建立單張卡片 ===
+    // === 建立單張卡片 ===
     function addCardToPage(data) {
         const card = document.createElement('div');
         
-        // 關鍵修改：把 category 加到 class 裡面，例如 "card video" 或 "card comic"
-        // 這樣 CSS 就可以針對 video 設定 3:4，針對 comic 設定 1:1
+        // 加上 category class 以便 CSS 控制比例
         card.className = `card ${data.category}`; 
         
         card.style.cursor = 'pointer'; 
 
         const imageUrl = data.imageUrl;
 
-        // 設定 Dataset 供 Modal 使用
         card.dataset.title = data.title;
         card.dataset.code = data.code || ''; 
         card.dataset.imageUrl = imageUrl; 
@@ -115,8 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.tags = Array.isArray(data.tags) ? data.tags.join(',') : ''; 
         card.dataset.details = JSON.stringify(data.details || {});
 
-        // 內容 HTML
-        // 注意：這裡我們不需要分 actor-card-img 了，統一交給 CSS 用 class 控制
         card.innerHTML = `
             <div class="img-container">
                 <img src="${imageUrl}" alt="${data.title}" loading="lazy" crossOrigin="anonymous">
@@ -130,9 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainer.appendChild(card); 
     }
 
-    // === Modal 邏輯 ===
+    // === Modal 邏輯 (保持不變) ===
     resultsContainer.addEventListener('click', (event) => {
-        // 找到被點擊的卡片
         const card = event.target.closest('.card');
         if (!card) return; 
 
@@ -142,7 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
         modalImage.src = data.imageUrl; 
         modalLink.href = data.targetUrl;
 
-        // 處理詳細資訊
         modalDetailsContainer.innerHTML = ''; 
         let details = {};
         try {
@@ -167,12 +160,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 處理標籤
         modalTagsContainer.innerHTML = ''; 
         if (data.tags) {
             const tags = data.tags.split(','); 
             tags.forEach(tagName => {
-                // 過濾掉一些系統用的標籤
                 if (tagName && tagName !== 'video' && tagName !== 'not-found' && tagName !== 'actor' && tagName !== 'missav' && tagName !== 'pornhub') {
                     const tagElement = document.createElement('span');
                     tagElement.className = 'tag';
@@ -184,11 +175,74 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.add('visible');
     });
 
-    // 關閉 Modal
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     modal.addEventListener('click', (event) => {
         if (event.target === modal) modal.classList.remove('visible');
     });
+
+    // =========================================================
+    // === 【新增功能】手機版左右滑動切換類別 (Swipe Logic) ===
+    // =========================================================
+    
+    // 1. 定義類別順序 (必須跟 HTML 的按鈕順序一樣)
+    const categoryOrder = ['all', 'video', 'comic', 'anime', 'porn', 'actor'];
+    
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const minSwipeDistance = 50; // 至少要滑動 50px 才算數，避免誤觸
+
+    // 監聽手指按下
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true }); // passive: true 優化滾動效能
+
+    // 監聽手指放開
+    document.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    }, { passive: true });
+
+    function handleSwipe() {
+        const swipeDistance = touchEndX - touchStartX;
+        
+        // 如果滑動距離太短，就不理會
+        if (Math.abs(swipeDistance) < minSwipeDistance) return;
+
+        // 找出目前類別在陣列中的位置
+        const currentIndex = categoryOrder.indexOf(currentCategory);
+        if (currentIndex === -1) return;
+
+        let nextIndex = currentIndex;
+
+        if (swipeDistance < 0) {
+            // [向左滑] (手指往左，畫面往右看) -> 下一個類別 (Next)
+            if (currentIndex < categoryOrder.length - 1) {
+                nextIndex = currentIndex + 1;
+            } else {
+                // 如果已經是最後一個，可以選擇循環回到第一個 (看你想不想)
+                nextIndex = 0; // 循環回到第一個
+            }
+        } else {
+            // [向右滑] (手指往右，畫面往左看) -> 上一個類別 (Prev)
+            if (currentIndex > 0) {
+                nextIndex = currentIndex - 1;
+            } else {
+                nextIndex = categoryOrder.length - 1; // 循環回到最後一個
+            }
+        }
+
+        // 觸發切換
+        if (nextIndex !== currentIndex) {
+            const nextCategory = categoryOrder[nextIndex];
+            console.log(`滑動切換: ${currentCategory} -> ${nextCategory}`);
+            
+            // 找到該類別的按鈕並模擬點擊 (這樣可以重用原本的過濾邏輯和按鈕樣式更新)
+            const targetBtn = document.querySelector(`.nav-btn[data-category="${nextCategory}"]`);
+            if (targetBtn) {
+                targetBtn.click();
+            }
+        }
+    }
 
     init();
 });
