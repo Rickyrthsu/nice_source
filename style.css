@@ -69,10 +69,10 @@ body {
    ========================================= */
 .results-grid {
     display: grid;
-    /* 自動適應寬度，最小 200px，確保 3:4 的影片卡片不會太細長 */
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    /* 這裡設 220px 讓橫向卡片有足夠空間展示 */
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 25px;
-    align-items: start; /* 讓不同高度的卡片靠上對齊 */
+    align-items: start; 
 }
 
 /* 卡片外框 */
@@ -100,15 +100,16 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover; /* 填滿格子不變形 */
-    object-position: top center; /* 重點在上面 */
+    object-position: top center; 
     display: block;
 }
 
 /* === 【關鍵修改】依類別設定比例 === */
 
-/* 1. 影片 (Video): 3:4 直立長方形 */
+/* 1. 影片 (Video): 4:3 橫向寬胖長方形 */
+/* 3:4 是直的，4:3 才是橫的喔！ */
 .card.video img, .card.anime img {
-    aspect-ratio: 3 / 4;
+    aspect-ratio: 4 / 3;
 }
 
 /* 2. 漫畫 (Comic): 1:1 正方形 */
@@ -150,12 +151,12 @@ body {
     text-align: center;
 }
 .card.actor h3 {
-    font-size: 18px; /* 名字大一點 */
+    font-size: 18px; 
     color: var(--primary-color);
 }
 
 /* =========================================
-   5. Modal (保持原樣，稍微美化)
+   5. Modal (保持原樣)
    ========================================= */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
