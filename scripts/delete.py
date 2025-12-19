@@ -38,18 +38,19 @@ def main():
     item_found = False
     image_to_delete = None
     
-    # 預先處理番號格式 (僅用於漫畫/影片，角色部分用不到)
+    # 預先處理番號格式 (僅用於漫畫/影片)
     formatted_code = cvalue.replace(" ", "-").upper()
 
     for item in data:
         found_it = False # 標記這筆是否要刪
         
-        # ===【【【 關鍵修正：新增角色刪除邏輯 】】】===
+        # ===【【【 刪除邏輯判斷 】】】===
         
         # 情況 A: 如果是「漫畫」或「影片」 (比對 code)
         if ctype == '漫畫' or ctype == '影片':
             item_code = (item.get('code') or "").replace(" ", "-").upper()
-            if item.get('category') != 'anime' and item.get('category') != 'actor' and item_code == formatted_code:
+            # 排除掉其他類別，避免誤刪
+            if item.get('category') in ['comic', 'video'] and item_code == formatted_code:
                 found_it = True
         
         # 情況 B: 如果是「動漫」 (比對 targetUrl)
@@ -59,10 +60,19 @@ def main():
 
         # 情況 C: 如果是「角色」 (比對 title/人名)
         elif ctype == '角色':
-            # 只要類別是 actor，且標題(人名)跟輸入的一模一樣，就刪除
             if item.get('category') == 'actor' and item.get('title', '').strip() == cvalue:
                 found_it = True
-        
+
+        # 情況 D: 如果是「Porn」 (比對 targetUrl 或 code)
+        elif ctype == 'Porn':
+            if item.get('category') == 'porn':
+                # 支援 1: 直接比對網址
+                if item.get('targetUrl') == cvalue:
+                    found_it = True
+                # 支援 2: 比對 PH-xxxx 代碼
+                elif item.get('code') == cvalue:
+                    found_it = True
+
         # ===【【【 判斷結束 】】】===
 
         if found_it:
@@ -86,7 +96,7 @@ def main():
         print(f"警告：在 data.json 中找不到 {ctype} 的 {cvalue}，任務結束。")
         sys.exit(0) # 正常結束，因為這不算「錯誤」
 
-    # 4. 【新功能】刪除實體的圖片檔案 (如果有的話)
+    # 4. 刪除實體的圖片檔案 (如果有的話)
     if image_to_delete:
         try:
             image_path_obj = Path(image_to_delete)

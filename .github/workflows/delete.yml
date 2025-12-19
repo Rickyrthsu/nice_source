@@ -3,7 +3,6 @@ name: 刪除收藏 (Delete Collection)
 on:
   workflow_dispatch:
     inputs:
-      # ===【【【 關鍵修正：加入「角色」下拉選單！】】】===
       delete_type:
         description: '請選擇要刪除的類別'
         required: true
@@ -12,9 +11,10 @@ on:
           - 漫畫
           - 影片
           - 動漫
+          - Porn  # <--- 新增這個選項
           - 角色
       delete_value:
-        description: '輸入: 番號 (漫畫/影片) 或 網址 (動漫) 或 名字 (角色)'
+        description: '輸入: 番號 (漫畫/影片) 或 網址 (動漫/Porn) 或 名字 (角色)'
         required: true
         type: string
 
