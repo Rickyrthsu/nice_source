@@ -98,7 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // === 【關鍵修改】建立單張卡片 ===
     function addCardToPage(data) {
         const card = document.createElement('div');
-        card.className = 'card';
+        
+        // 關鍵修改：把 category 加到 class 裡面，例如 "card video" 或 "card comic"
+        // 這樣 CSS 就可以針對 video 設定 3:4，針對 comic 設定 1:1
+        card.className = `card ${data.category}`; 
+        
         card.style.cursor = 'pointer'; 
 
         const imageUrl = data.imageUrl;
@@ -108,32 +112,21 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.code = data.code || ''; 
         card.dataset.imageUrl = imageUrl; 
         card.dataset.targetUrl = data.targetUrl;
-        // 確保 tags 是陣列再 join，避免錯誤
         card.dataset.tags = Array.isArray(data.tags) ? data.tags.join(',') : ''; 
         card.dataset.details = JSON.stringify(data.details || {});
 
-        // --- 這裡就是不同的地方！ ---
-        if (data.category === 'actor') {
-            // [A] 如果是「角色」：使用圓形頭像版型 (記得去 style.css 加我給你的樣式)
-            card.innerHTML = `
-                <img src="${imageUrl}" alt="${data.title}" class="actor-card-img" loading="lazy" crossOrigin="anonymous">
-                <div class="actor-card-title">${data.title}</div>
-                <div class="card-info" style="text-align: center;">
-                   <small style="color: #aaa;">${data.code}</small>
-                </div>
-            `;
-        } else {
-            // [B] 如果是「漫畫/影片/動漫」：使用原本的長方形版型
-            card.innerHTML = `
-                <img src="${imageUrl}" alt="${data.title}" class="card-image" loading="lazy" crossOrigin="anonymous">
-                <div class="card-info">
-                    <h3>${data.title}</h3>
-                    ${data.code ? `<p>${data.code}</p>` : ''} 
-                </div>
-            `;
-        }
+        // 內容 HTML
+        // 注意：這裡我們不需要分 actor-card-img 了，統一交給 CSS 用 class 控制
+        card.innerHTML = `
+            <div class="img-container">
+                <img src="${imageUrl}" alt="${data.title}" loading="lazy" crossOrigin="anonymous">
+            </div>
+            <div class="card-info">
+                <h3>${data.title}</h3>
+                ${data.code ? `<p>${data.code}</p>` : ''} 
+            </div>
+        `;
         
-        // 改用 appendChild 確保順序是從新到舊 (依照 JSON 順序)
         resultsContainer.appendChild(card); 
     }
 
