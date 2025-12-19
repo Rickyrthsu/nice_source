@@ -65,11 +65,11 @@ body {
 }
 
 /* =========================================
-   3. 卡片網格 (Grid)
+   3. 卡片網格 (Grid) - 電腦版預設
    ========================================= */
 .results-grid {
     display: grid;
-    /* 讓橫向卡片有足夠空間，最小寬度設 220px */
+    /* 電腦版：自動適應，最小寬度 220px (這樣大螢幕會顯示多排) */
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 25px;
     align-items: start; 
@@ -89,29 +89,29 @@ body {
 
 .card:hover { transform: translateY(-5px); }
 
-/* --- 圖片容器 (修正重點！) --- */
+/* --- 圖片容器 --- */
 .img-container {
     width: 100%;
     position: relative;
     background-color: #eee;
-    overflow: hidden; /* 確保圖片不超出圓角 */
+    overflow: hidden; 
 }
 
-/* 圖片本體：只要負責填滿容器就好 */
+/* 圖片本體 */
 .card img {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* 裁切填滿 */
+    object-fit: cover; 
     object-position: top center; 
     display: block;
 }
 
-/* === 【關鍵修改】依類別設定「容器」的比例 === */
-/* 這裡改用 .img-container 來控制形狀，最穩！ */
+/* === 依類別設定「容器」的比例 === */
 
-/* 1. 影片 (Video): 4:3 橫向寬胖長方形 */
+/* 1. 影片 (Video), Anime, Porn: 4:3 橫向寬胖長方形 */
 .card.video .img-container, 
-.card.anime .img-container {
+.card.anime .img-container,
+.card.porn .img-container {
     aspect-ratio: 4 / 3;
 }
 
@@ -124,11 +124,7 @@ body {
 .card.actor .img-container {
     aspect-ratio: 1 / 1;
 }
-.card.porn .img-container {  /* <--- 加上這行 */
-    aspect-ratio: 4 / 3;
-}
 
-/* 針對角色的圖片位置微調 */
 .card.actor img {
     object-position: top; 
 }
@@ -165,7 +161,7 @@ body {
 }
 
 /* =========================================
-   5. Modal (保持原樣)
+   5. Modal (彈窗)
    ========================================= */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -203,4 +199,47 @@ body {
     background: var(--primary-color); color: white;
     text-align: center; text-decoration: none; border-radius: 8px;
     margin-top: 15px; font-weight: bold;
+}
+
+/* =========================================
+   6. 【關鍵新增】手機版 RWD 優化 (Mobile)
+   ========================================= */
+@media (max-width: 768px) {
+    body {
+        padding: 10px; /* 手機邊距改小 */
+    }
+
+    .container {
+        padding: 0;
+    }
+
+    .main-header {
+        margin-bottom: 20px;
+        gap: 15px;
+    }
+
+    .nav-btn {
+        padding: 6px 16px; /* 按鈕縮小一點 */
+        font-size: 14px;
+    }
+
+    /* === 這裡就是你要的：一排兩個 === */
+    .results-grid {
+        /* 強制分為兩列 (1fr 1fr) */
+        grid-template-columns: repeat(2, 1fr);
+        
+        /* 手機版間距改小，不然卡片會太小 */
+        gap: 10px; 
+    }
+
+    /* 手機版文字調整，避免太擠 */
+    .card-info {
+        padding: 8px;
+    }
+    .card-info h3 {
+        font-size: 13px;
+    }
+    .card-info p {
+        font-size: 11px;
+    }
 }
