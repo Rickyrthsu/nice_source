@@ -112,7 +112,7 @@ body {
 /* 1. 影片 (Video): 4:3 橫向寬胖長方形 */
 .card.video .img-container, 
 .card.anime .img-container {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1 / 1;
 }
 
 /* 2. 漫畫 (Comic): 1:1 正方形 */
