@@ -11,9 +11,9 @@ on:
           - 漫畫
           - 影片
           - 動漫
-	  - 角色
+          - 角色  # <--- 這裡原本縮排有問題，我幫你修好了
       collection_value:
-        description: '請輸入 番號 (漫畫/影片) 或 網址 (動漫)'
+        description: '輸入格式: 番號 (漫畫/影片) 或 網址 (動漫) 或 名字,來源 (角色)'
         required: true
         type: string
 
@@ -24,11 +24,10 @@ jobs:
       contents: write
     
     steps:
-      # ===【【【 關鍵的 Bug 修正！】】】===
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          ref: main # 【【【 加上這一行！它會抓取「整個 main 分支」！】】】
+          ref: main 
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -64,16 +63,15 @@ jobs:
         run: |
           python scripts/scrape_anime.py
 
+      # === 新增的角色爬蟲 ===
       - name: Run Actor Scraper
         if: github.event.inputs.collection_type == '角色'
         env:
           COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
           COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
-        run: python scripts/scrape_actor.py
+        run: | 
+          python scripts/scrape_actor.py
 
-
-      # ===【【【 關鍵的 Bug 修正！】】】===
-      # 我們換回「更聰明」的自動 commit 工具
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
