@@ -11,6 +11,7 @@ on:
           - 漫畫
           - 影片
           - 動漫
+	  - 角色
       collection_value:
         description: '請輸入 番號 (漫畫/影片) 或 網址 (動漫)'
         required: true
@@ -62,7 +63,15 @@ jobs:
           COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
         run: |
           python scripts/scrape_anime.py
-      
+
+      - name: Run Actor Scraper
+        if: github.event.inputs.collection_type == '角色'
+        env:
+          COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
+          COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
+        run: python scripts/scrape_actor.py
+
+
       # ===【【【 關鍵的 Bug 修正！】】】===
       # 我們換回「更聰明」的自動 commit 工具
       - name: Commit changes

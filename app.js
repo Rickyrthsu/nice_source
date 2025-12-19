@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalDetailsContainer = document.getElementById('modal-details-container');
 
     let globalData = []; 
-    
     let currentCategory = 'all'; 
     let currentSearchTerm = '';
 
@@ -37,37 +36,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // === 【【【 核心邏輯：超級防呆過濾 】】】 ===
+    // === 核心邏輯：過濾 ===
     function applyFilters() {
         const term = currentSearchTerm.toLowerCase().trim();
 
         const filteredData = globalData.filter(item => {
-            // 1. 檢查類別
+            // 1. 檢查類別 (如果目前是 'actor'，這裡就會只篩選出 actor)
             const matchCategory = (currentCategory === 'all') || (item.category === currentCategory);
             
-            // 如果沒有輸入關鍵字，直接回傳 true (只看類別)
             if (!term) return matchCategory;
 
-            // 2. 準備搜尋資料 (將所有可能為 null 的欄位轉為空字串或空陣列)
+            // 2. 準備搜尋資料
             const title = (item.title || "").toLowerCase();
             const code = (item.code || "").toLowerCase();
             const tags = item.tags || [];
-            
-            // 【關鍵修正】安全地取得女優列表
-            // 漫畫類別可能完全沒有 details，所以要用 ?.
-            // 就算有 details，actress 也可能是 undefined，所以要 || []
             const actressList = item.details?.actress || [];
 
             // 3. 開始比對
             const matchTitle = title.includes(term);
             const matchCode = code.includes(term);
             const matchTags = tags.some(tag => tag.toLowerCase().includes(term));
-            
-            // 【關鍵修正】搜尋女優
-            // 確保 actressList 是陣列才使用 .some()
             const matchActress = Array.isArray(actressList) && actressList.some(name => name.toLowerCase().includes(term));
 
-            // 只要有任何一個欄位符合，就算選中
             const matchSearch = matchTitle || matchCode || matchTags || matchActress;
 
             return matchCategory && matchSearch;
@@ -93,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyFilters();
     });
 
-    // === 渲染卡片 (保持不變) ===
+    // === 渲染卡片 ===
     function renderCards(dataArray) {
         resultsContainer.innerHTML = '';
         if (dataArray.length === 0) {
@@ -105,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // === 建立單張卡片 (保持不變) ===
+    // === 【關鍵修改】建立單張卡片 ===
     function addCardToPage(data) {
         const card = document.createElement('div');
         card.className = 'card';
@@ -113,37 +103,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const imageUrl = data.imageUrl;
 
+        // 設定 Dataset 供 Modal 使用
         card.dataset.title = data.title;
         card.dataset.code = data.code || ''; 
         card.dataset.imageUrl = imageUrl; 
         card.dataset.targetUrl = data.targetUrl;
-        card.dataset.tags = (data.tags || []).join(','); 
+        // 確保 tags 是陣列再 join，避免錯誤
+        card.dataset.tags = Array.isArray(data.tags) ? data.tags.join(',') : ''; 
         card.dataset.details = JSON.stringify(data.details || {});
 
-        card.innerHTML = `
-            <img src="${imageUrl}" alt="${data.title}" crossOrigin="anonymous">
-            <div class="card-info">
-                <h3>${data.title}</h3>
-                ${data.code ? `<p>${data.code}</p>` : ''} </div>
-        `;
+        // --- 這裡就是不同的地方！ ---
+        if (data.category === 'actor') {
+            // [A] 如果是「角色」：使用圓形頭像版型 (記得去 style.css 加我給你的樣式)
+            card.innerHTML = `
+                <img src="${imageUrl}" alt="${data.title}" class="actor-card-img" loading="lazy" crossOrigin="anonymous">
+                <div class="actor-card-title">${data.title}</div>
+                <div class="card-info" style="text-align: center;">
+                   <small style="color: #aaa;">${data.code}</small>
+                </div>
+            `;
+        } else {
+            // [B] 如果是「漫畫/影片/動漫」：使用原本的長方形版型
+            card.innerHTML = `
+                <img src="${imageUrl}" alt="${data.title}" class="card-image" loading="lazy" crossOrigin="anonymous">
+                <div class="card-info">
+                    <h3>${data.title}</h3>
+                    ${data.code ? `<p>${data.code}</p>` : ''} 
+                </div>
+            `;
+        }
         
-        resultsContainer.insertAdjacentElement('afterbegin', card); 
+        // 改用 appendChild 確保順序是從新到舊 (依照 JSON 順序)
+        resultsContainer.appendChild(card); 
     }
 
-    // === Modal 邏輯 (保持不變) ===
+    // === Modal 邏輯 ===
     resultsContainer.addEventListener('click', (event) => {
+        // 找到被點擊的卡片
         const card = event.target.closest('.card');
         if (!card) return; 
 
         const data = card.dataset;
-        const imageUrl = data.imageUrl;
-
+        
         modalTitle.textContent = data.title;
-        modalImage.src = imageUrl; 
+        modalImage.src = data.imageUrl; 
         modalLink.href = data.targetUrl;
 
+        // 處理詳細資訊
         modalDetailsContainer.innerHTML = ''; 
-        const details = JSON.parse(data.details); 
+        let details = {};
+        try {
+            details = JSON.parse(data.details); 
+        } catch (e) {
+            console.error("解析 details 失敗", e);
+        }
         
         const detailMap = {
             'release_date': '發行日期',
@@ -161,11 +174,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // 處理標籤
         modalTagsContainer.innerHTML = ''; 
-        if (data.tags && data.tags.length > 0) {
+        if (data.tags) {
             const tags = data.tags.split(','); 
             tags.forEach(tagName => {
-                if (tagName && tagName !== 'video' && tagName !== 'not-found') {
+                // 過濾掉一些系統用的標籤
+                if (tagName && tagName !== 'video' && tagName !== 'not-found' && tagName !== 'actor' && tagName !== 'missav' && tagName !== 'pornhub') {
                     const tagElement = document.createElement('span');
                     tagElement.className = 'tag';
                     tagElement.textContent = tagName;
@@ -176,6 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.add('visible');
     });
 
+    // 關閉 Modal
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     modal.addEventListener('click', (event) => {
         if (event.target === modal) modal.classList.remove('visible');
