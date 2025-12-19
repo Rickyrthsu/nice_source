@@ -48,22 +48,19 @@ def parse_details_page(soup):
     }
     return final_details, all_tags
 
-# --- 【新增】Pornhub 爬蟲函式 ---
+# --- Pornhub 爬蟲函式 ---
 def scrape_pornhub(url):
     print(f"  [函式: scrape_pornhub] 開始爬取 {url}...")
     scraper = cloudscraper.create_scraper()
 
     try:
-        # 1. 嘗試解析 viewkey
         parsed = urlparse(url)
         qs = parse_qs(parsed.query)
         viewkey = qs.get('viewkey', [None])[0]
         
-        # 如果網址沒有 viewkey，嘗試直接抓最後一段
         if not viewkey:
             viewkey = url.split('viewkey=')[-1] if 'viewkey=' in url else url.split('/')[-1]
 
-        # 2. 抓取網頁
         response = scraper.get(url)
         if response.status_code != 200:
             print(f"  [錯誤] 連線失敗 Status: {response.status_code}")
@@ -71,8 +68,6 @@ def scrape_pornhub(url):
             
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 3. 抓取資料
-        # 標題
         title = ""
         meta_title = soup.find('meta', property='og:title')
         if meta_title:
@@ -81,14 +76,12 @@ def scrape_pornhub(url):
             h1 = soup.find('h1', class_='titleText')
             if h1: title = h1.text.strip()
 
-        # 封面圖
         image_url = ""
         meta_image = soup.find('meta', property='og:image')
         if meta_image:
             image_url = meta_image.get('content', '')
             
-        # 標籤
-        tags = ["porn", "pornhub"] # 基本標籤
+        tags = ["porn", "pornhub"]
         tags_wrapper = soup.find('div', class_='tagsWrapper')
         if tags_wrapper:
             tag_links = tags_wrapper.find_all('a')
@@ -97,11 +90,10 @@ def scrape_pornhub(url):
                 if tag_text and "Pornhub" not in tag_text and "Premium" not in tag_text:
                     tags.append(tag_text)
 
-        # 4. 下載圖片
         images_dir = Path('images')
         images_dir.mkdir(exist_ok=True)
         
-        filename = f"porn_{viewkey}.jpg" # 檔名區隔
+        filename = f"porn_{viewkey}.jpg"
         save_path = images_dir / filename
         
         final_image_path = "https://via.placeholder.com/200x250.png?text=No+Image"
@@ -119,7 +111,6 @@ def scrape_pornhub(url):
             except Exception as img_e:
                 print(f"  [Pornhub] 圖片下載失敗: {img_e}")
 
-        # 5. 回傳資料 (注意 category 是 porn)
         return {
             "title": title,
             "code": f"PH-{viewkey}", 
@@ -129,19 +120,18 @@ def scrape_pornhub(url):
             "details": {
                 "studio": ["Pornhub"]
             },
-            "category": "porn"  # <--- 關鍵！這會讓它分類到 Porn
+            "category": "porn"
         }
 
     except Exception as e:
         print(f"  [Pornhub] 發生例外錯誤: {e}")
         return None
 
-# --- 輔助函式：爬取 MissAV (維持不變) ---
+# --- 輔助函式：爬取 MissAV ---
 def scrape_missav(code):
     print(f"  [函式: scrape_missav] 開始爬取 {code}...")
     scraper = cloudscraper.create_scraper()
     
-    # 強健性檢查
     if code.startswith('http'):
          return {
             "title": f"類別錯誤: {code}",
@@ -183,7 +173,6 @@ def scrape_missav(code):
         external_image_url = img_tag.get('data-src', img_tag.get('src'))
         title = img_tag.get('title', f"影片: {formatted_code}") 
         
-        # 爬取詳細頁
         details = {}
         tags = ["video"]
         try:
@@ -195,7 +184,6 @@ def scrape_missav(code):
             if detail_title: title = detail_title.text.strip()
         except: pass
 
-        # 下載圖片
         images_dir = Path('images')
         images_dir.mkdir(exist_ok=True)
         image_ext = ".jpg"
@@ -224,7 +212,7 @@ def scrape_missav(code):
         print(f"  [MissAV] 發生錯誤: {e}")
         return None
 
-# --- 主程式 (路由分發) ---
+# --- 主程式 ---
 def main():
     ctype = os.environ.get('COLLECTION_TYPE')
     cvalue = os.environ.get('COLLECTION_VALUE')
@@ -237,20 +225,31 @@ def main():
 
     new_entry = None
     
-    # === 路由判斷 ===
+    # ===【【【 關鍵修正：加入 Porn 類別對應 】】】===
+    category_map = { 
+        '漫畫': 'comic', 
+        '影片': 'video', 
+        '動漫': 'anime', 
+        'Porn': 'porn'  # <--- 就是少了這個！
+    }
+    
     if ctype == 'Porn':
-        # 如果選擇 Porn，執行 Pornhub 爬蟲
         new_entry = scrape_pornhub(cvalue)
     elif ctype == '影片':
-        # 如果選擇 影片，執行 MissAV 爬蟲
         new_entry = scrape_missav(cvalue)
-    
-    # (其他類別如動漫、漫畫由其他腳本處理，不會進到這裡)
     
     if not new_entry:
         print("爬取失敗，結束任務")
         sys.exit(1) 
         
+    # 確保 category 正確 (如果爬蟲函式有回傳 category 就不會被 unknown 覆蓋)
+    if 'category' not in new_entry:
+        new_entry['category'] = category_map.get(ctype, 'unknown')
+    else:
+        # 雙重保險：如果爬蟲有回傳，但我們想強制統一，也可以用 map 覆蓋
+        # 但既然爬蟲已經寫好 category='porn'，這裡我們就保留原值，或者用 map 確保一致
+        new_entry['category'] = category_map.get(ctype, new_entry['category'])
+
     data_file = 'data.json'
     try:
         with open(data_file, 'r', encoding='utf-8') as f:
