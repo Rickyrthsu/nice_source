@@ -124,6 +124,9 @@ body {
 .card.actor .img-container {
     aspect-ratio: 1 / 1;
 }
+.card.porn .img-container {  /* <--- 加上這行 */
+    aspect-ratio: 4 / 3;
+}
 
 /* 針對角色的圖片位置微調 */
 .card.actor img {

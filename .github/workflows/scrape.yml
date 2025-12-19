@@ -11,9 +11,10 @@ on:
           - 漫畫
           - 影片
           - 動漫
-          - 角色  # <--- 這裡原本縮排有問題，我幫你修好了
+          - Porn  # <--- 新增這個選項
+          - 角色
       collection_value:
-        description: '輸入格式: 番號 (漫畫/影片) 或 網址 (動漫) 或 名字,來源 (角色)'
+        description: '輸入: 番號 (影片) 或 連結 (Porn/動漫) 或 名字,來源 (角色)'
         required: true
         type: string
 
@@ -44,33 +45,36 @@ jobs:
         env:
           COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
           COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
-        run: |
-          python scripts/scrape_comic.py
+        run: python scripts/scrape_comic.py
           
-      - name: Run Video Scraper
+      - name: Run Video Scraper (MissAV)
         if: github.event.inputs.collection_type == '影片'
         env:
           COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
           COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
-        run: |
-          python scripts/scrape_video.py
+        run: python scripts/scrape_video.py
           
+      # === 【新增】執行 Porn 爬蟲 (重用 scrape_video.py) ===
+      - name: Run Porn Scraper (Pornhub)
+        if: github.event.inputs.collection_type == 'Porn'
+        env:
+          COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
+          COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
+        run: python scripts/scrape_video.py
+
       - name: Run Anime Scraper
         if: github.event.inputs.collection_type == '動漫'
         env:
           COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
           COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
-        run: |
-          python scripts/scrape_anime.py
+        run: python scripts/scrape_anime.py
 
-      # === 新增的角色爬蟲 ===
       - name: Run Actor Scraper
         if: github.event.inputs.collection_type == '角色'
         env:
           COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
           COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
-        run: | 
-          python scripts/scrape_actor.py
+        run: python scripts/scrape_actor.py
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
