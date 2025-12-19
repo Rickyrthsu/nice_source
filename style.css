@@ -69,7 +69,7 @@ body {
    ========================================= */
 .results-grid {
     display: grid;
-    /* 這裡設 220px 讓橫向卡片有足夠空間展示 */
+    /* 讓橫向卡片有足夠空間，最小寬度設 220px */
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 25px;
     align-items: start; 
@@ -89,38 +89,45 @@ body {
 
 .card:hover { transform: translateY(-5px); }
 
-/* 圖片容器 */
+/* --- 圖片容器 (修正重點！) --- */
 .img-container {
     width: 100%;
     position: relative;
     background-color: #eee;
+    overflow: hidden; /* 確保圖片不超出圓角 */
 }
 
+/* 圖片本體：只要負責填滿容器就好 */
 .card img {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* 填滿格子不變形 */
+    object-fit: cover; /* 裁切填滿 */
     object-position: top center; 
     display: block;
 }
 
-/* === 【關鍵修改】依類別設定比例 === */
+/* === 【關鍵修改】依類別設定「容器」的比例 === */
+/* 這裡改用 .img-container 來控制形狀，最穩！ */
 
 /* 1. 影片 (Video): 4:3 橫向寬胖長方形 */
-/* 3:4 是直的，4:3 才是橫的喔！ */
-.card.video img, .card.anime img {
+.card.video .img-container, 
+.card.anime .img-container {
     aspect-ratio: 4 / 3;
 }
 
 /* 2. 漫畫 (Comic): 1:1 正方形 */
-.card.comic img {
+.card.comic .img-container {
     aspect-ratio: 1 / 1;
 }
 
 /* 3. 角色 (Actor): 1:1 正方形 */
-.card.actor img {
+.card.actor .img-container {
     aspect-ratio: 1 / 1;
-    object-position: top; /* 人臉通常在上方 */
+}
+
+/* 針對角色的圖片位置微調 */
+.card.actor img {
+    object-position: top; 
 }
 
 /* =========================================
@@ -133,7 +140,6 @@ body {
 .card-info h3 {
     font-size: 15px;
     margin-bottom: 6px;
-    /* 限制標題兩行，超過顯示 ... */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -146,7 +152,7 @@ body {
     font-family: monospace;
 }
 
-/* 角色卡片的文字置中比較好看 */
+/* 角色卡片的文字置中 */
 .card.actor .card-info {
     text-align: center;
 }
