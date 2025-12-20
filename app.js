@@ -71,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
             currentCategory = button.dataset.category;
             applyFilters();
             
-            // 每次切換類別時，順便把視窗捲回最上面
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     });
@@ -97,10 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // === 建立單張卡片 ===
     function addCardToPage(data) {
         const card = document.createElement('div');
-        
-        // 加上 category class 以便 CSS 控制比例
         card.className = `card ${data.category}`; 
-        
         card.style.cursor = 'pointer'; 
 
         const imageUrl = data.imageUrl;
@@ -125,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainer.appendChild(card); 
     }
 
-    // === Modal 邏輯 (保持不變) ===
+    // === Modal 邏輯 ===
     resultsContainer.addEventListener('click', (event) => {
         const card = event.target.closest('.card');
         if (!card) return; 
@@ -181,62 +177,63 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // =========================================================
-    // === 【新增功能】手機版左右滑動切換類別 (Swipe Logic) ===
+    // === 【改良版】手機版左右滑動切換類別 (Swipe Logic) ===
     // =========================================================
     
-    // 1. 定義類別順序 (必須跟 HTML 的按鈕順序一樣)
     const categoryOrder = ['all', 'video', 'comic', 'anime', 'porn', 'actor'];
     
     let touchStartX = 0;
+    let touchStartY = 0; // 新增：紀錄垂直位置
     let touchEndX = 0;
-    const minSwipeDistance = 50; // 至少要滑動 50px 才算數，避免誤觸
+    let touchEndY = 0;   // 新增：紀錄垂直位置
+    
+    // 【修改 1】提高門檻：從 50 改成 100 (需要滑比較長才算)
+    const minSwipeDistance = 100; 
 
-    // 監聽手指按下
     document.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
-    }, { passive: true }); // passive: true 優化滾動效能
+        touchStartY = e.changedTouches[0].screenY; // 記錄垂直起點
+    }, { passive: true });
 
-    // 監聽手指放開
     document.addEventListener('touchend', (e) => {
         touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY; // 記錄垂直終點
         handleSwipe();
     }, { passive: true });
 
     function handleSwipe() {
-        const swipeDistance = touchEndX - touchStartX;
-        
-        // 如果滑動距離太短，就不理會
-        if (Math.abs(swipeDistance) < minSwipeDistance) return;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY; // 計算垂直距離
 
-        // 找出目前類別在陣列中的位置
+        // 【修改 2】垂直檢測：如果你往下滑的距離 > 往左右滑的距離，就當作是捲動，忽略切換
+        if (Math.abs(diffY) > Math.abs(diffX)) return;
+
+        // 如果滑動距離太短，就不理會
+        if (Math.abs(diffX) < minSwipeDistance) return;
+
         const currentIndex = categoryOrder.indexOf(currentCategory);
         if (currentIndex === -1) return;
 
         let nextIndex = currentIndex;
 
-        if (swipeDistance < 0) {
-            // [向左滑] (手指往左，畫面往右看) -> 下一個類別 (Next)
+        if (diffX < 0) {
+            // 左滑 (Next)
             if (currentIndex < categoryOrder.length - 1) {
                 nextIndex = currentIndex + 1;
             } else {
-                // 如果已經是最後一個，可以選擇循環回到第一個 (看你想不想)
-                nextIndex = 0; // 循環回到第一個
+                nextIndex = 0; 
             }
         } else {
-            // [向右滑] (手指往右，畫面往左看) -> 上一個類別 (Prev)
+            // 右滑 (Prev)
             if (currentIndex > 0) {
                 nextIndex = currentIndex - 1;
             } else {
-                nextIndex = categoryOrder.length - 1; // 循環回到最後一個
+                nextIndex = categoryOrder.length - 1; 
             }
         }
 
-        // 觸發切換
         if (nextIndex !== currentIndex) {
             const nextCategory = categoryOrder[nextIndex];
-            console.log(`滑動切換: ${currentCategory} -> ${nextCategory}`);
-            
-            // 找到該類別的按鈕並模擬點擊 (這樣可以重用原本的過濾邏輯和按鈕樣式更新)
             const targetBtn = document.querySelector(`.nav-btn[data-category="${nextCategory}"]`);
             if (targetBtn) {
                 targetBtn.click();
