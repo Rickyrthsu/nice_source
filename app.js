@@ -17,6 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentCategory = 'all'; 
     let currentSearchTerm = '';
 
+    // === 【新增 1】初始化收藏清單 (從瀏覽器讀取) ===
+    // 我們使用 Set 來儲存 targetUrl，確保不會重複
+    let favorites = new Set(JSON.parse(localStorage.getItem('nice_source_favorites')) || []);
+
     // === 初始化 ===
     async function init() {
         console.log('初始化，準備讀取 data.json...');
@@ -40,7 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const term = currentSearchTerm.toLowerCase().trim();
 
         const filteredData = globalData.filter(item => {
-            const matchCategory = (currentCategory === 'all') || (item.category === currentCategory);
+            // === 【新增 2】處理「收藏」類別 ===
+            let matchCategory = false;
+            if (currentCategory === 'all') {
+                matchCategory = true;
+            } else if (currentCategory === 'favorites') {
+                // 如果目前選的是「收藏」，只顯示在 favorites 清單裡的項目
+                matchCategory = favorites.has(item.targetUrl);
+            } else {
+                matchCategory = (item.category === currentCategory);
+            }
             
             if (!term) return matchCategory;
 
@@ -84,23 +97,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // === 渲染卡片 ===
     function renderCards(dataArray) {
         resultsContainer.innerHTML = '';
+        
+        // 如果是收藏頁面且沒有資料
+        if (currentCategory === 'favorites' && dataArray.length === 0) {
+            resultsContainer.innerHTML = '<p style="text-align: center; width: 100%; padding: 20px; color: #777;">你還沒有加入任何收藏喔！點擊卡片右上角的愛心試試看。</p>';
+            return;
+        }
+
         if (dataArray.length === 0) {
             resultsContainer.innerHTML = '<p style="text-align: center; width: 100%; padding: 20px;">沒有找到符合的收藏。</p>';
             return;
         }
+        
         dataArray.forEach(data => {
             addCardToPage(data);
         });
     }
 
-    // === 建立單張卡片 ===
+    // === 【關鍵修改】建立單張卡片 ===
     function addCardToPage(data) {
         const card = document.createElement('div');
         card.className = `card ${data.category}`; 
-        card.style.cursor = 'pointer'; 
-
+        
+        // 判斷是否已收藏
+        const isLiked = favorites.has(data.targetUrl);
+        const heartClass = isLiked ? 'active' : '';
+        
+        // 設定 Dataset
         const imageUrl = data.imageUrl;
-
         card.dataset.title = data.title;
         card.dataset.code = data.code || ''; 
         card.dataset.imageUrl = imageUrl; 
@@ -108,9 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.tags = Array.isArray(data.tags) ? data.tags.join(',') : ''; 
         card.dataset.details = JSON.stringify(data.details || {});
 
+        // === 【新增 3】插入愛心按鈕 HTML ===
         card.innerHTML = `
             <div class="img-container">
                 <img src="${imageUrl}" alt="${data.title}" loading="lazy" crossOrigin="anonymous">
+                <button class="like-btn ${heartClass}" aria-label="收藏">
+                    <span class="like-icon">♥</span>
+                </button>
             </div>
             <div class="card-info">
                 <h3>${data.title}</h3>
@@ -118,16 +146,44 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
+        // === 【新增 4】愛心點擊事件 (必須在 card click 之前綁定) ===
+        const likeBtn = card.querySelector('.like-btn');
+        likeBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 【非常重要】阻止事件冒泡，這樣才不會觸發 Modal 打開
+            
+            toggleFavorite(data.targetUrl, likeBtn);
+        });
+
+        // 卡片點擊事件 (打開 Modal)
+        card.addEventListener('click', () => openModal(data));
+        
         resultsContainer.appendChild(card); 
     }
 
-    // === Modal 邏輯 ===
-    resultsContainer.addEventListener('click', (event) => {
-        const card = event.target.closest('.card');
-        if (!card) return; 
-
-        const data = card.dataset;
+    // === 【新增 5】切換收藏狀態函式 ===
+    function toggleFavorite(id, btnElement) {
+        if (favorites.has(id)) {
+            // 已經收藏 -> 取消收藏
+            favorites.delete(id);
+            btnElement.classList.remove('active');
+            
+            // 如果目前正在看「收藏」頁面，直接把這張卡片隱藏，體驗較好
+            if (currentCategory === 'favorites') {
+                const card = btnElement.closest('.card');
+                card.style.display = 'none';
+            }
+        } else {
+            // 沒收藏 -> 加入收藏
+            favorites.add(id);
+            btnElement.classList.add('active');
+        }
         
+        // 存回 LocalStorage
+        localStorage.setItem('nice_source_favorites', JSON.stringify([...favorites]));
+    }
+
+    // === Modal 邏輯 (維持不變) ===
+    function openModal(data) {
         modalTitle.textContent = data.title;
         modalImage.src = data.imageUrl; 
         modalLink.href = data.targetUrl;
@@ -136,9 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let details = {};
         try {
             details = JSON.parse(data.details); 
-        } catch (e) {
-            console.error("解析 details 失敗", e);
-        }
+        } catch (e) {}
         
         const detailMap = {
             'release_date': '發行日期',
@@ -160,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.tags) {
             const tags = data.tags.split(','); 
             tags.forEach(tagName => {
-                if (tagName && tagName !== 'video' && tagName !== 'not-found' && tagName !== 'actor' && tagName !== 'missav' && tagName !== 'pornhub') {
+                if (tagName && !['video','not-found','actor','missav','pornhub'].includes(tagName)) {
                     const tagElement = document.createElement('span');
                     tagElement.className = 'tag';
                     tagElement.textContent = tagName;
@@ -169,46 +223,38 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         modal.classList.add('visible');
-    });
+    }
 
     modalCloseBtn.addEventListener('click', () => modal.classList.remove('visible'));
     modal.addEventListener('click', (event) => {
         if (event.target === modal) modal.classList.remove('visible');
     });
 
-    // =========================================================
-    // === 【改良版】手機版左右滑動切換類別 (Swipe Logic) ===
-    // =========================================================
-    
-    const categoryOrder = ['all', 'video', 'comic', 'anime', 'porn', 'actor'];
+    // === 手機版左右滑動切換類別 (Swipe Logic) ===
+    const categoryOrder = ['all', 'video', 'comic', 'anime', 'porn', 'actor', 'favorites']; // 把 favorites 也加進去
     
     let touchStartX = 0;
-    let touchStartY = 0; // 新增：紀錄垂直位置
+    let touchStartY = 0;
     let touchEndX = 0;
-    let touchEndY = 0;   // 新增：紀錄垂直位置
-    
-    // 【修改 1】提高門檻：從 50 改成 100 (需要滑比較長才算)
+    let touchEndY = 0;
     const minSwipeDistance = 100; 
 
     document.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
-        touchStartY = e.changedTouches[0].screenY; // 記錄垂直起點
+        touchStartY = e.changedTouches[0].screenY;
     }, { passive: true });
 
     document.addEventListener('touchend', (e) => {
         touchEndX = e.changedTouches[0].screenX;
-        touchEndY = e.changedTouches[0].screenY; // 記錄垂直終點
+        touchEndY = e.changedTouches[0].screenY;
         handleSwipe();
     }, { passive: true });
 
     function handleSwipe() {
         const diffX = touchEndX - touchStartX;
-        const diffY = touchEndY - touchStartY; // 計算垂直距離
+        const diffY = touchEndY - touchStartY; 
 
-        // 【修改 2】垂直檢測：如果你往下滑的距離 > 往左右滑的距離，就當作是捲動，忽略切換
         if (Math.abs(diffY) > Math.abs(diffX)) return;
-
-        // 如果滑動距離太短，就不理會
         if (Math.abs(diffX) < minSwipeDistance) return;
 
         const currentIndex = categoryOrder.indexOf(currentCategory);
@@ -216,15 +262,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let nextIndex = currentIndex;
 
-        if (diffX < 0) {
-            // 左滑 (Next)
+        if (diffX < 0) { // 左滑 (Next)
             if (currentIndex < categoryOrder.length - 1) {
                 nextIndex = currentIndex + 1;
             } else {
                 nextIndex = 0; 
             }
-        } else {
-            // 右滑 (Prev)
+        } else { // 右滑 (Prev)
             if (currentIndex > 0) {
                 nextIndex = currentIndex - 1;
             } else {

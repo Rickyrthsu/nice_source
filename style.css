@@ -202,7 +202,7 @@ body {
 }
 
 /* =========================================
-   6. 【關鍵新增】手機版 RWD 優化 (Mobile)
+   6. 手機版 RWD 優化 (Mobile)
    ========================================= */
 @media (max-width: 768px) {
     body {
@@ -242,4 +242,52 @@ body {
     .card-info p {
         font-size: 11px;
     }
+}
+
+/* =========================================
+   7. 【新增】愛心收藏功能樣式
+   ========================================= */
+
+/* 愛心按鈕本體 */
+.like-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10; /* 確保浮在圖片上面 */
+    background: rgba(0, 0, 0, 0.3); /* 半透明黑底，讓白色愛心更明顯 */
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(2px);
+}
+
+.like-btn:hover {
+    background: rgba(0, 0, 0, 0.5);
+    transform: scale(1.1);
+}
+
+/* 愛心圖案 (預設空心或白色) */
+.like-icon {
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.8);
+    transition: color 0.2s ease;
+    user-select: none; /* 防止連點時選取到文字 */
+}
+
+/* 當被按讚時的樣式 (Active) */
+.like-btn.active .like-icon {
+    color: #ff4757; /* 亮紅色 */
+    text-shadow: 0 0 10px rgba(255, 71, 87, 0.5); /* 發光效果 */
+}
+
+/* 按下的動畫 */
+.like-btn:active {
+    transform: scale(0.9);
 }
