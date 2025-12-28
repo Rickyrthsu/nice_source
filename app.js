@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentCategory = 'all'; 
     let currentSearchTerm = '';
 
-    // === 【新增 1】初始化收藏清單 (從瀏覽器讀取) ===
-    // 我們使用 Set 來儲存 targetUrl，確保不會重複
+    // === 【新增 1】初始化收藏清單 (從瀏覽器 LocalStorage 讀取) ===
+    // 用 targetUrl 當作唯一 ID，比較準
     let favorites = new Set(JSON.parse(localStorage.getItem('nice_source_favorites')) || []);
 
     // === 初始化 ===
@@ -46,10 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const filteredData = globalData.filter(item => {
             // === 【新增 2】處理「收藏」類別 ===
             let matchCategory = false;
+            
             if (currentCategory === 'all') {
                 matchCategory = true;
             } else if (currentCategory === 'favorites') {
-                // 如果目前選的是「收藏」，只顯示在 favorites 清單裡的項目
+                // 如果目前是看收藏頁，只顯示在 favorites 清單裡的
                 matchCategory = favorites.has(item.targetUrl);
             } else {
                 matchCategory = (item.category === currentCategory);
@@ -83,7 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             currentCategory = button.dataset.category;
             applyFilters();
-            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     });
@@ -98,9 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCards(dataArray) {
         resultsContainer.innerHTML = '';
         
-        // 如果是收藏頁面且沒有資料
+        // 收藏頁面是空的
         if (currentCategory === 'favorites' && dataArray.length === 0) {
-            resultsContainer.innerHTML = '<p style="text-align: center; width: 100%; padding: 20px; color: #777;">你還沒有加入任何收藏喔！點擊卡片右上角的愛心試試看。</p>';
+            resultsContainer.innerHTML = '<p style="text-align: center; width: 100%; padding: 20px; color: #777;">還沒有收藏任何東西喔！<br>點擊卡片右上角的愛心試試看。</p>';
             return;
         }
 
@@ -114,15 +114,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // === 【關鍵修改】建立單張卡片 ===
+    // === 【關鍵修改】建立單張卡片 (包含愛心按鈕) ===
     function addCardToPage(data) {
         const card = document.createElement('div');
         card.className = `card ${data.category}`; 
         
-        // 判斷是否已收藏
+        // 檢查是否已收藏
         const isLiked = favorites.has(data.targetUrl);
-        const heartClass = isLiked ? 'active' : '';
-        
+        const heartClass = isLiked ? 'active' : ''; // 如果收藏過，按鈕要亮紅色
+
         // 設定 Dataset
         const imageUrl = data.imageUrl;
         card.dataset.title = data.title;
@@ -132,11 +132,12 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.tags = Array.isArray(data.tags) ? data.tags.join(',') : ''; 
         card.dataset.details = JSON.stringify(data.details || {});
 
-        // === 【新增 3】插入愛心按鈕 HTML ===
+        // === 【新增 3】插入愛心 HTML ===
+        // 注意 button class="like-btn" 
         card.innerHTML = `
             <div class="img-container">
                 <img src="${imageUrl}" alt="${data.title}" loading="lazy" crossOrigin="anonymous">
-                <button class="like-btn ${heartClass}" aria-label="收藏">
+                <button class="like-btn ${heartClass}">
                     <span class="like-icon">♥</span>
                 </button>
             </div>
@@ -146,43 +147,42 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
-        // === 【新增 4】愛心點擊事件 (必須在 card click 之前綁定) ===
+        // === 【新增 4】愛心點擊邏輯 ===
         const likeBtn = card.querySelector('.like-btn');
         likeBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // 【非常重要】阻止事件冒泡，這樣才不會觸發 Modal 打開
-            
+            e.stopPropagation(); // 阻止事件冒泡 (重要！不然點愛心會同時打開彈窗)
             toggleFavorite(data.targetUrl, likeBtn);
         });
 
-        // 卡片點擊事件 (打開 Modal)
+        // 卡片點擊邏輯 (打開 Modal)
         card.addEventListener('click', () => openModal(data));
         
         resultsContainer.appendChild(card); 
     }
 
-    // === 【新增 5】切換收藏狀態函式 ===
+    // === 【新增 5】切換收藏狀態並存入瀏覽器 ===
     function toggleFavorite(id, btnElement) {
         if (favorites.has(id)) {
-            // 已經收藏 -> 取消收藏
+            // 已經有 -> 移除
             favorites.delete(id);
             btnElement.classList.remove('active');
             
-            // 如果目前正在看「收藏」頁面，直接把這張卡片隱藏，體驗較好
+            // 如果人在「收藏頁」，立刻隱藏該卡片，視覺上比較順
             if (currentCategory === 'favorites') {
                 const card = btnElement.closest('.card');
-                card.style.display = 'none';
+                if(card) card.style.display = 'none';
             }
         } else {
-            // 沒收藏 -> 加入收藏
+            // 沒有 -> 加入
             favorites.add(id);
             btnElement.classList.add('active');
         }
         
-        // 存回 LocalStorage
+        // 存回 LocalStorage (這就是瀏覽器記憶)
         localStorage.setItem('nice_source_favorites', JSON.stringify([...favorites]));
     }
 
-    // === Modal 邏輯 (維持不變) ===
+    // === Modal 邏輯 (無變動) ===
     function openModal(data) {
         modalTitle.textContent = data.title;
         modalImage.src = data.imageUrl; 
@@ -230,14 +230,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.target === modal) modal.classList.remove('visible');
     });
 
-    // === 手機版左右滑動切換類別 (Swipe Logic) ===
-    const categoryOrder = ['all', 'video', 'comic', 'anime', 'porn', 'actor', 'favorites']; // 把 favorites 也加進去
+    // === 手機版滑動切換 (包含 favorites) ===
+    const categoryOrder = ['all', 'video', 'comic', 'anime', 'porn', 'actor', 'favorites']; 
     
     let touchStartX = 0;
     let touchStartY = 0;
     let touchEndX = 0;
     let touchEndY = 0;
-    const minSwipeDistance = 100; 
+    const minSwipeDistance = 100; // 防誤觸門檻 100px
 
     document.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
@@ -254,7 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY; 
 
+        // 垂直滑動大於水平滑動 -> 視為捲動，不切換
         if (Math.abs(diffY) > Math.abs(diffX)) return;
+        // 滑動距離不夠 -> 不切換
         if (Math.abs(diffX) < minSwipeDistance) return;
 
         const currentIndex = categoryOrder.indexOf(currentCategory);
