@@ -17,9 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentCategory = 'all'; 
     let currentSearchTerm = '';
 
-    // === 【新增 1】初始化收藏清單 (從瀏覽器 LocalStorage 讀取) ===
-    // 用 targetUrl 當作唯一 ID，比較準
-    let favorites = new Set(JSON.parse(localStorage.getItem('nice_source_favorites')) || []);
+    // === 初始化收藏清單 (加了防呆機制，避免讀取錯誤) ===
+    let favorites = new Set();
+    try {
+        const stored = localStorage.getItem('nice_source_favorites');
+        if (stored) {
+            favorites = new Set(JSON.parse(stored));
+        }
+    } catch (e) {
+        console.error('讀取收藏失敗，重置清單', e);
+    }
 
     // === 初始化 ===
     async function init() {
@@ -44,13 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const term = currentSearchTerm.toLowerCase().trim();
 
         const filteredData = globalData.filter(item => {
-            // === 【新增 2】處理「收藏」類別 ===
+            // 處理「收藏」類別
             let matchCategory = false;
             
             if (currentCategory === 'all') {
                 matchCategory = true;
             } else if (currentCategory === 'favorites') {
-                // 如果目前是看收藏頁，只顯示在 favorites 清單裡的
                 matchCategory = favorites.has(item.targetUrl);
             } else {
                 matchCategory = (item.category === currentCategory);
@@ -65,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const matchTitle = title.includes(term);
             const matchCode = code.includes(term);
-            const matchTags = tags.some(tag => tag.toLowerCase().includes(term));
+            const matchTags = Array.isArray(tags) ? tags.some(tag => tag.toLowerCase().includes(term)) : false;
             const matchActress = Array.isArray(actressList) && actressList.some(name => name.toLowerCase().includes(term));
 
             const matchSearch = matchTitle || matchCode || matchTags || matchActress;
@@ -98,7 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCards(dataArray) {
         resultsContainer.innerHTML = '';
         
-        // 收藏頁面是空的
         if (currentCategory === 'favorites' && dataArray.length === 0) {
             resultsContainer.innerHTML = '<p style="text-align: center; width: 100%; padding: 20px; color: #777;">還沒有收藏任何東西喔！<br>點擊卡片右上角的愛心試試看。</p>';
             return;
@@ -114,26 +119,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // === 【關鍵修改】建立單張卡片 (包含愛心按鈕) ===
+    // === 建立單張卡片 ===
     function addCardToPage(data) {
         const card = document.createElement('div');
         card.className = `card ${data.category}`; 
         
-        // 檢查是否已收藏
         const isLiked = favorites.has(data.targetUrl);
-        const heartClass = isLiked ? 'active' : ''; // 如果收藏過，按鈕要亮紅色
+        const heartClass = isLiked ? 'active' : '';
 
-        // 設定 Dataset
         const imageUrl = data.imageUrl;
-        card.dataset.title = data.title;
-        card.dataset.code = data.code || ''; 
-        card.dataset.imageUrl = imageUrl; 
-        card.dataset.targetUrl = data.targetUrl;
-        card.dataset.tags = Array.isArray(data.tags) ? data.tags.join(',') : ''; 
-        card.dataset.details = JSON.stringify(data.details || {});
 
-        // === 【新增 3】插入愛心 HTML ===
-        // 注意 button class="like-btn" 
         card.innerHTML = `
             <div class="img-container">
                 <img src="${imageUrl}" alt="${data.title}" loading="lazy" crossOrigin="anonymous">
@@ -147,52 +142,50 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
-        // === 【新增 4】愛心點擊邏輯 ===
+        // 愛心點擊事件
         const likeBtn = card.querySelector('.like-btn');
         likeBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // 阻止事件冒泡 (重要！不然點愛心會同時打開彈窗)
+            e.stopPropagation(); 
             toggleFavorite(data.targetUrl, likeBtn);
         });
 
-        // 卡片點擊邏輯 (打開 Modal)
+        // 卡片點擊事件 (這裡傳遞的是原始物件 data)
         card.addEventListener('click', () => openModal(data));
         
         resultsContainer.appendChild(card); 
     }
 
-    // === 【新增 5】切換收藏狀態並存入瀏覽器 ===
+    // === 切換收藏狀態 ===
     function toggleFavorite(id, btnElement) {
         if (favorites.has(id)) {
-            // 已經有 -> 移除
             favorites.delete(id);
             btnElement.classList.remove('active');
             
-            // 如果人在「收藏頁」，立刻隱藏該卡片，視覺上比較順
             if (currentCategory === 'favorites') {
                 const card = btnElement.closest('.card');
                 if(card) card.style.display = 'none';
             }
         } else {
-            // 沒有 -> 加入
             favorites.add(id);
             btnElement.classList.add('active');
         }
-        
-        // 存回 LocalStorage (這就是瀏覽器記憶)
         localStorage.setItem('nice_source_favorites', JSON.stringify([...favorites]));
     }
 
-    // === Modal 邏輯 (無變動) ===
+    // === 【關鍵修正】Modal 邏輯 ===
     function openModal(data) {
         modalTitle.textContent = data.title;
         modalImage.src = data.imageUrl; 
         modalLink.href = data.targetUrl;
 
         modalDetailsContainer.innerHTML = ''; 
-        let details = {};
-        try {
-            details = JSON.parse(data.details); 
-        } catch (e) {}
+        
+        // 【修正 1】如果 details 已經是物件，就不要再 JSON.parse
+        let details = data.details;
+        if (typeof details === 'string') {
+            try { details = JSON.parse(details); } catch (e) { details = {}; }
+        }
+        if (!details) details = {}; // 確保不為 null
         
         const detailMap = {
             'release_date': '發行日期',
@@ -211,8 +204,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         modalTagsContainer.innerHTML = ''; 
-        if (data.tags) {
-            const tags = data.tags.split(','); 
+        
+        // 【修正 2】如果 tags 已經是陣列，直接使用，不用 split
+        let tags = data.tags;
+        if (typeof tags === 'string') {
+            tags = tags.split(',');
+        }
+        
+        if (Array.isArray(tags)) {
             tags.forEach(tagName => {
                 if (tagName && !['video','not-found','actor','missav','pornhub'].includes(tagName)) {
                     const tagElement = document.createElement('span');
@@ -230,14 +229,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.target === modal) modal.classList.remove('visible');
     });
 
-    // === 手機版滑動切換 (包含 favorites) ===
+    // === 手機版滑動切換 ===
     const categoryOrder = ['all', 'video', 'comic', 'anime', 'porn', 'actor', 'favorites']; 
     
     let touchStartX = 0;
     let touchStartY = 0;
     let touchEndX = 0;
     let touchEndY = 0;
-    const minSwipeDistance = 100; // 防誤觸門檻 100px
+    const minSwipeDistance = 100; 
 
     document.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
@@ -254,9 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY; 
 
-        // 垂直滑動大於水平滑動 -> 視為捲動，不切換
         if (Math.abs(diffY) > Math.abs(diffX)) return;
-        // 滑動距離不夠 -> 不切換
         if (Math.abs(diffX) < minSwipeDistance) return;
 
         const currentIndex = categoryOrder.indexOf(currentCategory);
