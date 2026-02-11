@@ -11,10 +11,10 @@ on:
           - 漫畫
           - 影片
           - 動漫
-          - Porn  # <--- 新增這個選項
+          - Porn
           - 角色
       collection_value:
-        description: '輸入: 番號 (影片) 或 連結 (Porn/動漫) 或 名字,來源 (角色)'
+        description: '【自動】輸入番號或網址 | 【手動】網址 | 標題 | 圖片連結'
         required: true
         type: string
 
@@ -38,7 +38,9 @@ jobs:
       - name: Install ALL dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 cloudscraper Pillow
+          pip install requests beautifulsoup4 cloudscraper Pillow playwright playwright-stealth
+          playwright install chromium
+          playwright install-deps
           
       - name: Run Comic Scraper
         if: github.event.inputs.collection_type == '漫畫'
@@ -54,7 +56,6 @@ jobs:
           COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
         run: python scripts/scrape_video.py
           
-      # === 【新增】執行 Porn 爬蟲 (重用 scrape_video.py) ===
       - name: Run Porn Scraper (Pornhub)
         if: github.event.inputs.collection_type == 'Porn'
         env:
