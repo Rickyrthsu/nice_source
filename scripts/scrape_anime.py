@@ -4,127 +4,90 @@ import requests
 import sys
 import shutil 
 from pathlib import Path 
-from bs4 import BeautifulSoup
-import cloudscraper 
 from urllib.parse import urlparse, parse_qs
 
-# --- 輔助函式：爬取動漫 ---
-def scrape_anime(url):
-    print(f"  [函式: scrape_anime] 開始爬取 {url}...")
+def scrape_anime(cvalue):
+    print(f"--- [手動模式啟動] ---")
     
-    # 【【【 Bug 修正！】】】
-    if not url.startswith('http'):
-         print(f"  [爬蟲警告!] 你輸入的是 番號，但類別選「動漫」。")
-         print(f"  [爬蟲警告!] 正在執行「Google Fallback」...")
-         return {
-            "title": f"類別錯誤: {url}",
-            "code": "Error",
-            "imageUrl": "https://via.placeholder.com/200x250.png?text=Wrong+Category", 
-            "targetUrl": f"https://www.google.com/search?q={quote(url)}", 
-            "tags": ["anime", "error"],
-            "details": {} 
-         }
-
-    scraper = cloudscraper.create_scraper()
-    
+    # 預期格式: 影片連結 , 標題 , 圖片連結
     try:
-        response = scraper.get(url)
-        response.raise_for_status() 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        if "," not in cvalue:
+            print("❌ 錯誤：請使用『影片連結 , 標題 , 圖片連結』格式輸入！")
+            return None
+            
+        parts = [p.strip() for p in cvalue.split(',')]
+        if len(parts) < 3:
+            print("❌ 錯誤：資料不足，請確保有兩個『,』分隔符號。")
+            return None
         
-        title_tag = soup.find('meta', property='og:title')
-        image_tag = soup.find('meta', property='og:image')
+        target_url = parts[0]
+        title = parts[1]
+        external_image_url = parts[2]
         
-        title = title_tag['content'] if title_tag else "找不到標題"
-        external_image_url = image_tag['content'] if image_tag else "https://via.placeholder.com/200x250.png?text=Image+Failed"
-        
-        print("  [爬蟲第 2.5 步] 正在尋找 <meta name='keywords'>...")
-        tags = ["anime"] 
-        keywords_tag = soup.find('meta', attrs={'name': 'keywords'})
-        
-        if keywords_tag and keywords_tag.get('content'):
-            keywords_content = keywords_tag.get('content')
-            print(f"  [爬蟲第 2.6 步] 成功找到關鍵字: {keywords_content[:50]}...")
-            tags = [tag.strip() for tag in keywords_content.split(',')]
-        else:
-            print("  [爬蟲警告!] 找不到 <meta name='keywords'> 標籤，使用預設 'anime' 標籤。")
+        print(f"📡 接收到手動資料：")
+        print(f"   - 標題: {title}")
+        print(f"   - 網址: {target_url}")
+        print(f"   - 圖片: {external_image_url}")
 
-        
-        # 6. 【【【 下載圖片邏輯 】】】
+        # 1. 處理圖片下載路徑
         images_dir = Path('images')
         images_dir.mkdir(exist_ok=True)
         
-        # === 【【【 這就是「錯誤」的地方！】】】 ===
-        parsed_url = urlparse(url)
+        # 嘗試從網址提取 v= ID 作為檔名，失敗就用標題
+        parsed_url = urlparse(target_url)
         video_id_list = parse_qs(parsed_url.query).get('v') 
+        video_id = video_id_list[0] if video_id_list else "manual_" + title[:10]
         
-        # === 【【【 我「忘記」加的「下一行」在這裡！】】】 ===
-        if video_id_list: # 如果 video_id_list 不是 None (代表 ?v= 存在)
-            video_id = video_id_list[0] # 我們才安全地拿 [0]
-        else:
-            video_id = None # 找不到
-        # === 【【【 修正完畢 】】】 ===
-            
-        image_ext = Path(urlparse(external_image_url).path).suffix
+        # 強制存成 webp
+        image_filename = f"anime_{video_id}.webp"
+        internal_image_path = images_dir / image_filename
         
-        if not video_id: 
-            video_id = title.replace(' ', '_').replace('/', '')[:20]
-        if not image_ext:
-            image_ext = ".jpg"
-
-        our_new_filename = f"anime_{video_id}{image_ext}"
-        internal_image_path = images_dir / our_new_filename
-        
+        # 2. 下載圖片 (帶上 Referer 避開簡單的圖片防盜連)
+        print(f"💾 正在下載封面圖...")
         try:
-            print(f"  [爬蟲第 3 步] 正在從 {external_image_url} 下載圖片...")
-            image_response = requests.get(external_image_url, stream=True)
-            image_response.raise_for_status() 
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Referer': 'https://hanime1.me/'
+            }
+            r = requests.get(external_image_url, headers=headers, stream=True, timeout=15)
+            r.raise_for_status()
             
             with open(internal_image_path, 'wb') as f:
-                image_response.raw.decode_content = True
-                shutil.copyfileobj(image_response.raw, f)
-            print(f"  [爬蟲第 4 步] 圖片已成功儲存到: {internal_image_path}")
-            internal_image_path = str(internal_image_path) # 轉成字串
-            
+                shutil.copyfileobj(r.raw, f)
+            print(f"✨ 圖片已成功儲存：{internal_image_path}")
+            final_img_path = str(internal_image_path)
         except Exception as img_e:
-            print(f"  [爬蟲警告!] 圖片「下載失敗」: {img_e}")
-            internal_image_path = "https://via.placeholder.com/200x250.png?text=Image+Failed"
-        # === 下載完畢 ===
-        
-        print("  [函式: scrape_anime] 爬取成功！")
+            print(f"⚠️ 圖片下載失敗: {img_e}，回退使用原始網址。")
+            final_img_path = external_image_url
+
+        # 3. 回傳資料結構
         return {
             "title": title,
-            "imageUrl": internal_image_path, 
-            "targetUrl": url,
-            "tags": tags, 
-            "details": {} # 動漫沒有詳細資料
+            "imageUrl": final_img_path, 
+            "targetUrl": target_url,
+            "tags": ["manual_add"], 
+            "details": {}
         }
+
     except Exception as e:
-        print(f"  [函式: scrape_anime] 爬取動漫 {url} 失敗: {e}")
+        print(f"❌ 解析失敗: {e}")
         return None
 
-# --- 主程式 (所有腳本共用的，100% 不用動) ---
 def main():
     ctype = os.environ.get('COLLECTION_TYPE')
     cvalue = os.environ.get('COLLECTION_VALUE')
     
     if not ctype or not cvalue:
-        print("錯誤：找不到類別或輸入值 (COLLECTION_TYPE or COLLECTION_VALUE)")
+        print("錯誤：找不到輸入值")
         sys.exit(1) 
 
     print(f"--- [GitHub Actions 執行中] ---")
-    print(f"開始處理: 類別={ctype}, 值={cvalue}")
-
-    new_entry = None
-    category_map = { '漫畫': 'comic', '影片': 'video', '動漫': 'anime' }
-    
-    # 這是這個檔案「唯一」的任務
     new_entry = scrape_anime(cvalue)
     
     if not new_entry:
-        print("爬取失敗，結束任務")
         sys.exit(1) 
         
+    category_map = { '漫畫': 'comic', '影片': 'video', '動漫': 'anime' }
     new_entry['category'] = category_map.get(ctype, 'unknown')
 
     data_file = 'data.json'
@@ -136,15 +99,9 @@ def main():
     
     data.insert(0, new_entry)
     
-    try:
-        with open(data_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"--- [GitHub Actions 執行完畢] ---")
-        print(f"✅ 成功新增資料到 data.json！")
-        
-    except Exception as e:
-        print(f"❌ 寫入 data.json 失敗: {e}")
-        sys.exit(1)
+    with open(data_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    print(f"✅ 成功新增資料到 data.json！")
 
 if __name__ == "__main__":
     main()
