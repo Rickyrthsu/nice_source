@@ -14,7 +14,7 @@ on:
           - Porn  # <--- 新增這個選項
           - 角色
       collection_value:
-        description: '輸入: 番號(n/miss) 或 連結 (Porn) 或 名字,來源 (角色)，動漫(影片連結,標題,圖片連結)'
+        description: '輸入: 番號(n/miss) 或 連結 (Porn) 或 名字,來源 (角色)，動漫(影片連結|標題|圖片連結)'
         required: true
         type: string
 

@@ -9,15 +9,15 @@ from urllib.parse import urlparse, parse_qs
 def scrape_anime(cvalue):
     print(f"--- [手動模式啟動] ---")
     
-    # 預期格式: 影片連結 , 標題 , 圖片連結
+    # 預期格式: 影片連結 | 標題 | 圖片連結
     try:
-        if "," not in cvalue:
-            print("❌ 錯誤：請使用『影片連結 , 標題 , 圖片連結』格式輸入！")
+        if "|" not in cvalue:
+            print("❌ 錯誤：請使用『影片連結 | 標題 | 圖片連結』格式輸入！")
             return None
             
-        parts = [p.strip() for p in cvalue.split(',')]
+        parts = [p.strip() for p in cvalue.split('|')]
         if len(parts) < 3:
-            print("❌ 錯誤：資料不足，請確保有兩個『,』分隔符號。")
+            print("❌ 錯誤：資料不足，請確保有兩個『|』分隔符號。")
             return None
         
         target_url = parts[0]
