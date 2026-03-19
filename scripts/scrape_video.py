@@ -145,7 +145,7 @@ def scrape_missav(code):
 
     formatted_code = code.replace(" ", "-").upper()
     encoded_code = quote(formatted_code)
-    base_url = "https://missav.ws"
+    base_url = "https://missav.ai"
     search_url = f"{base_url}/search/{encoded_code}"
 
     try:

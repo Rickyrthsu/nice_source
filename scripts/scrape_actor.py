@@ -12,7 +12,7 @@ from urllib.parse import quote, urlparse
 def scrape_missav_actor(name, scraper):
     print(f"  [MissAV] 正在搜尋: {name} ...")
     
-    search_url = f"https://missav.ws/search/{quote(name)}"
+    search_url = f"https://missav.ai/search/{quote(name)}"
     try:
         response = scraper.get(search_url)
         if response.status_code != 200:
@@ -39,7 +39,7 @@ def scrape_missav_actor(name, scraper):
             return None
 
         if not actor_link.startswith('http'):
-            actor_link = f"https://missav.ws{actor_link}"
+            actor_link = f"https://missav.ai{actor_link}"
             
         print(f"  [MissAV] 進入個人頁面: {actor_link}")
         profile_response = scraper.get(actor_link)
