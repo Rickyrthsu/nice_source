@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirmation:
-        description: '【危險！】請輸入 "right" 來確認「清空」所有資料'
+        description: '【危險操作！】確認清空請輸入小寫 "right" (將永久刪除所有 json 紀錄與圖片)'
         required: true
         type: string
 
@@ -21,11 +21,10 @@ jobs:
           echo "錯誤：未輸入 'right'。取消清空操作。"
           exit 1 
           
-      # ===【【【 關鍵的 Bug 修正！】】】===
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # 更新為 v4
         with:
-          ref: main # 【【【 加上這一行！】】】
+          ref: main
 
       - name: Clear Data and Images
         run: |
@@ -43,10 +42,8 @@ jobs:
           fi
           echo "--- 清空完畢 ---"
           
-      # ===【【【 關鍵的 Bug 修正！】】】===
-      # 我們換回「更聰明」的自動 commit 工具
       - name: Commit Reset
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@v5  # 更新為 v5
         with:
           commit_message: "chore(data): ⚠️ RESET - 清空 data.json 與 images 資料夾"
           file_pattern: "data.json images"

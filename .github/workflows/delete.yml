@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       delete_type:
-        description: '請選擇要刪除的類別'
+        description: '請選擇要刪除的資料類別'
         required: true
         type: choice
         options:
           - 漫畫
           - 影片
           - 動漫
-          - Porn  # <--- 新增這個選項
+          - Porn
           - 角色
       delete_value:
-        description: '輸入: 番號 (漫畫/影片) 或 網址 (動漫/Porn) 或 名字 (角色)'
+        description: '輸入：漫畫/影片填「番號代碼」、動漫填「影片網址」、Porn填「網址或PH代碼」、角色填「精準名字」'
         required: true
         type: string
 
@@ -26,12 +26,12 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # 更新為 v4
         with:
           ref: main 
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5  # 更新為 v5
         with:
           python-version: '3.10'
           
@@ -43,7 +43,7 @@ jobs:
           python scripts/delete.py
           
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@v5  # 更新為 v5
         with:
           commit_message: "chore(data): 自動刪除收藏 (${{ github.event.inputs.delete_value }})"
           file_pattern: "data.json images"
