@@ -20,7 +20,8 @@ except ImportError as e:
     sys.exit(1)
 
 try:
-    from playwright_stealth import stealth_sync
+    # 【關鍵修正】對應最新版 playwright-stealth 的 API
+    from playwright_stealth import Stealth
 except ImportError as e:
     print(f"❌ 錯誤：無法載入 playwright-stealth。詳細資訊: {e}")
     sys.exit(1)
@@ -47,10 +48,12 @@ def scrape_anime(url):
             timezone_id='Asia/Taipei'
         )
         
-        page = context.new_page()
+        print("🥷 披上 playwright-stealth 隱形斗篷 (使用新版 API)...")
+        # 呼叫新版 Stealth 物件，並套用到整個 context
+        stealth = Stealth()
+        stealth.apply_stealth_sync(context)
         
-        print("🥷 披上 playwright-stealth 隱形斗篷...")
-        stealth_sync(page)
+        page = context.new_page()
 
         try:
             print("⏳ 進入網站並等待 Cloudflare 盾牌驗證 (可能需要幾秒鐘)...")
