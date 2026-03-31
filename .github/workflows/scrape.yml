@@ -1,36 +1,82 @@
-name: Run Anime Scraper
+name: 新增收藏 (Add Collection)
 
 on:
-  # 允許你從 GitHub 網頁端手動點擊 "Run workflow" 觸發
-  workflow_dispatch: 
-  # 當有程式碼推送到 main 分支時自動觸發 (可依需求註解掉)
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      collection_type:
+        description: '請選擇要新增的資料類別'
+        required: true
+        type: choice
+        options:
+          - 漫畫
+          - 影片
+          - 動漫
+          - Porn
+          - 角色
+      collection_value:
+        description: '格式：漫畫/影片填「番號」、動漫/Porn填「完整網址」、角色填「人名或Pornhub網址」'
+        required: true
+        type: string
 
 jobs:
-  scrape-data:
+  scrape-and-commit:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+    
     steps:
-      - name: 📥 檢出程式碼 (Checkout Repository)
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 設定 Python 環境 (Set up Python)
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10' # 可依你的開發環境調整版本
+          python-version: '3.10'
 
-      - name: 📦 安裝 Python 相依套件 (Install Dependencies)
+      - name: Install dependencies
+        # 【關鍵修正】把 cloudscraper 加回來，並使用 --with-deps 安裝瀏覽器底層套件
         run: |
           python -m pip install --upgrade pip
-          pip install playwright
-          # 若你有其他套件，可使用：pip install -r requirements.txt
+          pip install requests beautifulsoup4 cloudscraper Pillow playwright playwright-stealth
+          playwright install --with-deps chromium
+          
+      - name: Run Comic Scraper
+        if: github.event.inputs.collection_type == '漫畫'
+        env:
+          COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
+          COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
+        run: python scripts/scrape_comic.py
+          
+      - name: Run Video Scraper (MissAV)
+        if: github.event.inputs.collection_type == '影片'
+        env:
+          COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
+          COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
+        run: python scripts/scrape_video.py
+          
+      - name: Run Porn Scraper (Pornhub)
+        if: github.event.inputs.collection_type == 'Porn'
+        env:
+          COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
+          COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
+        run: python scripts/scrape_video.py
 
-      - name: 🌐 安裝 Playwright 瀏覽器與系統依賴 (Install Playwright Browsers)
-        # --with-deps 是關鍵，它會自動補齊 Ubuntu 跑 Chromium 所需的系統函式庫
-        run: playwright install chromium --with-deps
-
-      - name: 🚀 執行爬蟲腳本 (Run scraper script)
-        # 確保路徑與你的專案結構一致
+      - name: Run Anime Scraper
+        if: github.event.inputs.collection_type == '動漫'
+        env:
+          COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
+          COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
         run: python scripts/scrape_anime.py
+
+      - name: Run Actor Scraper
+        if: github.event.inputs.collection_type == '角色'
+        env:
+          COLLECTION_TYPE: ${{ github.event.inputs.collection_type }}
+          COLLECTION_VALUE: ${{ github.event.inputs.collection_value }}
+        run: python scripts/scrape_actor.py
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(data): 自動更新收藏"
+          file_pattern: "data.json images"
