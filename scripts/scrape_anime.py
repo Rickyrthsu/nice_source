@@ -6,18 +6,25 @@ from urllib.parse import urlparse, parse_qs
 from io import BytesIO 
 from bs4 import BeautifulSoup
 
+# --- 【嚴格除錯模式】分開載入，印出真實錯誤 ---
 try:
     from PIL import Image
-except ImportError:
-    print("❌ 錯誤：找不到 Pillow 庫。")
+except ImportError as e:
+    print(f"❌ 錯誤：無法載入 Pillow 庫。詳細資訊: {e}")
     sys.exit(1)
 
 try:
     from playwright.sync_api import sync_playwright
-    from playwright_stealth import stealth_sync
-except ImportError:
-    print("❌ 錯誤：找不到 Playwright。請確認 YAML 有正確安裝 playwright 與 playwright-stealth。")
+except ImportError as e:
+    print(f"❌ 錯誤：無法載入 Playwright。詳細資訊: {e}")
     sys.exit(1)
+
+try:
+    from playwright_stealth import stealth_sync
+except ImportError as e:
+    print(f"❌ 錯誤：無法載入 playwright-stealth。詳細資訊: {e}")
+    sys.exit(1)
+# ----------------------------------------------
 
 def scrape_anime(url):
     print(f"--- [終極無頭瀏覽器 + 隱形斗篷模式啟動] ---")
@@ -29,13 +36,10 @@ def scrape_anime(url):
         print("❌ 錯誤：請輸入有效的網址 (http/https 開頭)！")
         return None
 
-    # 啟動 Playwright
     with sync_playwright() as p:
         print("🚀 啟動 Chromium 瀏覽器...")
-        # 設定為無頭模式，並加入繞過沙盒的參數 (GitHub Actions 必備)
         browser = p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
         
-        # 建立一個擬真的瀏覽器上下文
         context = browser.new_context(
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             viewport={'width': 1920, 'height': 1080},
@@ -45,27 +49,23 @@ def scrape_anime(url):
         
         page = context.new_page()
         
-        # 披上隱形斗篷 (消除 WebDriver 標記、偽裝 WebGL 等)
         print("🥷 披上 playwright-stealth 隱形斗篷...")
         stealth_sync(page)
 
         try:
             print("⏳ 進入網站並等待 Cloudflare 盾牌驗證 (可能需要幾秒鐘)...")
-            # 載入網頁，等待網路活動靜止
-            page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
             
-            # 強制等待 3 秒，讓 Cloudflare 的 JS 挑戰有時間執行完畢
-            page.wait_for_timeout(3000)
+            # 強制等待 5 秒，確保動態內容與挑戰腳本跑完
+            page.wait_for_timeout(5000)
 
             html = page.content()
             soup = BeautifulSoup(html, 'html.parser')
 
-            # 檢查是否還是被 403 擋住
-            if "403 Forbidden" in html or "Cloudflare" in page.title():
-                print("❌ 致命錯誤：依然被 Cloudflare 阻擋。對方的防火牆已經直接封鎖了 GitHub 的整個 ASN (機房網段)。")
+            if "403 Forbidden" in html or "Cloudflare" in page.title() or "Just a moment" in page.title():
+                print("❌ 致命錯誤：依然被 Cloudflare 阻擋。對方防火牆直接封鎖了 GitHub 的機房網段 (ASN)。")
                 return None
 
-            # --- 2. 爬取標題 ---
             title = ""
             og_title = soup.find('meta', property='og:title')
             if og_title and og_title.get('content'):
@@ -79,7 +79,6 @@ def scrape_anime(url):
             if not title:
                 title = "Unknown Anime Title"
 
-            # --- 3. 爬取封面圖 ---
             external_image_url = ""
             og_image = soup.find('meta', property='og:image')
             if og_image and og_image.get('content'):
@@ -91,7 +90,6 @@ def scrape_anime(url):
 
             print(f"✅ 成功抓取資訊：\n  - 標題: {title}\n  - 原始圖片: {external_image_url}")
 
-            # --- 4. 處理圖片儲存路徑 ---
             images_dir = Path('images')
             images_dir.mkdir(exist_ok=True)
             
@@ -105,10 +103,8 @@ def scrape_anime(url):
             image_filename = f"anime_{safe_video_id}.jpg"
             internal_image_path = images_dir / image_filename
             
-            # --- 5. 下載並轉換圖片 (使用同一個已通過驗證的瀏覽器通道) ---
             print(f"💾 正在下載並轉換為 JPG...")
             try:
-                # 這裡直接用 Playwright 的 API 抓圖，帶上 Referer，完全模擬正常瀏覽行為
                 img_response = context.request.get(external_image_url, headers={'Referer': url})
                 
                 if img_response.ok:
